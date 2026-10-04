@@ -68,7 +68,7 @@ The goal is not simply to maximize retention at any cost. The agent should selec
 
 The Revenue Rescue agent can autonomously coordinate multiple steps that would otherwise require a person to investigate several datasets manually.
 
-The agent can:
+The agent may:
 
 1. Identify patients showing potential disengagement or revenue-risk signals.
 2. Query appointment and visit history.
