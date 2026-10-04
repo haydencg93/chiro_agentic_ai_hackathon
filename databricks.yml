@@ -1,0 +1,12 @@
+bundle:
+  name: chiro_agentic_ai_hackathon
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      host: https://dbc-228b93dc-352f.cloud.databricks.com

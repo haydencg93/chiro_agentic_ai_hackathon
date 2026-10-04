@@ -1,1 +1,23 @@
+# Databricks AI Dev Kit generated files
+.ai-dev-kit/
+.claude/
+.agents/
+.opencode/
+.github/skills/
 
+# Databricks local bundle state
+.databricks/
+
+# Local/dev environment files
+.env
+.env.*
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
