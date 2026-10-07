@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, ChevronDown, ClipboardList, FolderKanban,
-  HeartPulse, LayoutDashboard, Play, Search,
-  Settings, ShieldCheck, UserRound, X,
+  Bell, ClipboardList, FolderKanban, HeartPulse, 
+  LayoutDashboard, Play, Search, Settings,
+  ShieldCheck, UserRound
 } from 'lucide-react';
 import { agentApi, apiMode } from '../../api/agentApi.js';
 
@@ -14,12 +14,6 @@ const secondaryNavItems = [
   { label: 'Approvals', icon: ClipboardList, count: 4 },
   { label: 'Settings', icon: Settings },
 ];
-
-const defaultProfile = {
-  name: 'Jordan Diaz',
-  role: 'Operations',
-  email: 'jordan.diaz@example.com',
-};
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -34,16 +28,6 @@ export default function AppShell() {
   const [searchLoaded, setSearchLoaded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profile, setProfile] = useState(() => {
-    try {
-      const stored = window.localStorage.getItem('name-tbd-profile');
-      return stored ? { ...defaultProfile, ...JSON.parse(stored) } : defaultProfile;
-    } catch {
-      return defaultProfile;
-    }
-  });
-  const [profileDraft, setProfileDraft] = useState(profile);
 
   const showNotice = (message, type = 'success') => {
     window.clearTimeout(noticeTimerRef.current);
@@ -73,7 +57,6 @@ export default function AppShell() {
 
       if (event.key === 'Escape') {
         setSearchOpen(false);
-        setProfileOpen(false);
       }
     };
 
@@ -194,37 +177,6 @@ export default function AppShell() {
     }
   }
 
-  function openProfile() {
-    setProfileDraft(profile);
-    setProfileOpen(true);
-  }
-
-  function saveProfile(event) {
-    event.preventDefault();
-
-    const name = profileDraft.name.trim();
-    const role = profileDraft.role.trim();
-    const email = profileDraft.email.trim();
-
-    if (!name || !role || !email) {
-      showNotice('Name, role, and email are required.', 'error');
-      return;
-    }
-
-    const nextProfile = { name, role, email };
-    setProfile(nextProfile);
-    setProfileDraft(nextProfile);
-    window.localStorage.setItem('name-tbd-profile', JSON.stringify(nextProfile));
-    setProfileOpen(false);
-    showNotice('Profile updated successfully.');
-  }
-
-  const initials = profile.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'U';
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--text-primary)]">
@@ -361,19 +313,7 @@ export default function AppShell() {
                   <Bell size={17} />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={openProfile}
-                  aria-label="Edit user profile"
-                  className="flex h-11 min-w-0 items-center gap-3 rounded-2xl border border-white/8 bg-[var(--surface-elevated)] px-3.5 text-left transition hover:bg-white/[0.05]"
-                >
-                  <div className="grid size-8 shrink-0 place-items-center rounded-full bg-[rgba(140,231,255,.16)] text-xs font-semibold text-[var(--ice-blue)]">{initials}</div>
-                  <div className="hidden min-w-0 md:block">
-                    <div className="wrap-anywhere max-w-40 text-sm font-medium text-white">{profile.name}</div>
-                    <div className="wrap-anywhere max-w-40 text-[11px] text-[var(--text-muted)]">{profile.role}</div>
-                  </div>
-                  <ChevronDown size={15} className="hidden shrink-0 text-[var(--text-muted)] md:block" />
-                </button>
+
               </div>
             </div>
           </header>
@@ -399,47 +339,7 @@ export default function AppShell() {
         </div>
       ) : null}
 
-      {profileOpen ? (
-        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/65 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setProfileOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" className="surface-card w-full max-w-lg rounded-[30px] p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">User profile</p>
-                <h2 id="profile-modal-title" className="wrap-anywhere mt-1 text-2xl font-semibold text-white">Edit operator profile</h2>
-                <p className="wrap-anywhere mt-2 text-sm leading-6 text-[var(--text-secondary)]">This is a local demo profile. It does not represent production authentication.</p>
-              </div>
-              <button type="button" onClick={() => setProfileOpen(false)} aria-label="Close profile editor" className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/8 bg-white/[0.03] text-[var(--text-secondary)] hover:text-white">
-                <X size={18} />
-              </button>
-            </div>
 
-            <form onSubmit={saveProfile} className="mt-6 space-y-4">
-              <ProfileField label="Name" value={profileDraft.name} onChange={(value) => setProfileDraft((current) => ({ ...current, name: value }))} />
-              <ProfileField label="Role" value={profileDraft.role} onChange={(value) => setProfileDraft((current) => ({ ...current, role: value }))} />
-              <ProfileField label="Email" type="email" value={profileDraft.email} onChange={(value) => setProfileDraft((current) => ({ ...current, email: value }))} />
-
-              <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setProfileOpen(false)} className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.05] hover:text-white">Cancel</button>
-                <button type="submit" className="rounded-2xl bg-[linear-gradient(180deg,var(--brand),#4849c8)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(86,87,232,.24)]">Save Profile</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
     </div>
-  );
-}
-
-function ProfileField({ label, value, onChange, type = 'text' }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-2xl border border-white/10 bg-white/[0.035] px-4 text-sm text-white outline-none transition focus:border-[rgba(140,231,255,.3)] focus:shadow-[0_0_0_3px_rgba(140,231,255,.08)]"
-      />
-    </label>
   );
 }
