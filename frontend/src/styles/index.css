@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  /* Vars */
+  --canvas: #0C1020;
+  --surface: #171B38;
+  --surface-elevated: rgba(23, 27, 56, 0.92);
+  --brand: #5657E8;
+  --violet: #8A70F6;
+  --ice-blue: #8CE7FF;
+  --text-primary: #F4F5FF;
+  --text-secondary: rgba(244, 245, 255, 0.72);
+  --text-muted: rgba(244, 245, 255, 0.44);
+
+  color: var(--text-primary);
+  background: var(--canvas);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 6%, rgba(86, 87, 232, 0.20), transparent 27rem),
+    radial-gradient(circle at 88% 8%, rgba(140, 231, 255, 0.14), transparent 24rem),
+    radial-gradient(circle at 50% 100%, rgba(138, 112, 246, 0.12), transparent 28rem),
+    linear-gradient(180deg, #0c1020 0%, #10142a 52%, #0c1020 100%);
+}
+
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--ice-blue);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(140, 231, 255, 0.28);
+}
+
+.surface-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)),
+    rgba(23, 27, 56, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(18px);
+}
+
+.agent-pulse {
+  box-shadow:
+    0 0 0 0 rgba(140, 231, 255, 0.24),
+    0 0 32px rgba(86, 87, 232, 0.32);
+  animation: agent-pulse 1.9s infinite;
+}
+
+@keyframes agent-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(140, 231, 255, 0.22),
+      0 0 32px rgba(86, 87, 232, 0.28);
+  }
+  70% {
+    box-shadow:
+      0 0 0 14px rgba(140, 231, 255, 0),
+      0 0 40px rgba(86, 87, 232, 0.36);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(140, 231, 255, 0),
+      0 0 32px rgba(86, 87, 232, 0.28);
+  }
+}
+
+/* Keep long IDs, names, API values, and generated copy inside their cards. */
+main,
+main * {
+  min-width: 0;
+}
+
+main :where(p, span, div, h1, h2, h3, h4, button, a, td, th, label) {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
