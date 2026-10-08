@@ -1,114 +1,136 @@
-# NAME TBD — Frontend
+# REALIGN Frontend
 
-Judge-facing React experience for the NAME TBD agentic AI hackathon project.
+React + Vite frontend for the Revenue Rescue demo. This app shows the agent workflow for identifying at-risk patients, diagnosing likely causes, comparing interventions, and acting on the highest-value option.
 
-## What is already implemented
+## Overview
 
-- Vite + React + JavaScript
-- Tailwind CSS via the official Vite plugin
-- React Router
-- Dashboard / command center
-- Revenue-risk case list
-- Patient case detail page
-- Mock REST-compatible data layer
-- Switch between mock and live backend using environment variables
-- Animated agent execution trace
-- Explicit `OBSERVE → INVESTIGATE → DIAGNOSE → SIMULATE → DECIDE → ACT → MEASURE` workflow
-- Intervention comparison UI
-- Human approval UI for financial interventions
-- Simulated recovered-revenue outcome UI
-- Loading and error states
-- API contract for Eva's backend
+The frontend is a judge-facing experience designed to demonstrate the agentic business workflow in a short, understandable flow:
 
-## 1. Requirements
+- customer overview dashboard
+- patient case detail view
+- evidence and diagnosis steps
+- intervention comparison
+- approval and rejection for financially sensitive actions
+- simulated revenue impact
 
-Use a current Node version supported by Vite. This starter expects Node 20.19+.
+The app supports both a mock data layer and a live backend connection via environment configuration.
 
-Check:
+## Tech stack
+
+- React 19
+- Vite
+- JavaScript
+- Tailwind CSS
+- Vitest
+- React Testing Library
+- ESLint
+
+## Prerequisites
+
+- Node.js 20.19+
+- npm 10+
+
+Verify the installation:
 
 ```bash
 node --version
 npm --version
 ```
 
-## 2. Install and run
+## Setup
 
-From this `frontend` project directory:
+From the repository root:
 
 ```bash
-npm install
+cd frontend
 cp .env.example .env
+npm install
+```
+
+The default environment file includes:
+
+```env
+VITE_USE_MOCK_API=true
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+## Run locally
+
+Start the frontend in development mode:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-Open the local Vite URL (normally `http://localhost:5173`).
+Then open the local development URL, usually:
 
-## 3. Demo path
+```text
+http://localhost:5173
+```
 
-1. Open the dashboard.
-2. Select `PT0054827`.
-3. Click **Run agent**.
-4. Watch the trace reveal evidence, tool calls, diagnosis, intervention comparison, decision, action, and measurement.
-5. Return to the dashboard and open `PT0031829` to demo a human approval gate.
+## Mock vs live backend
 
-## 4. Mock vs. Eva's real API
-
-During frontend work:
+During frontend development, keep mock mode enabled:
 
 ```env
 VITE_USE_MOCK_API=true
 ```
 
-When Eva's REST backend is ready:
+When the backend is running locally, switch to the live API:
 
 ```env
 VITE_USE_MOCK_API=false
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-The components should not need to change as long as the backend follows `docs/API_CONTRACT.md`.
+The UI is designed to remain stable as long as the backend follows the API contract used by the app.
 
-## 5. Recommended repository layout
+## Demo flow
 
-Place this directory inside the shared project repository:
+A standard judge demo path is:
 
-```text
-name-tbd/
-├── databricks.yml
-├── frontend/            # this project
-├── backend/             # Eva
-├── src/agent/           # Eva
-├── src/tools/           # Eva
-├── resources/           # Databricks resources
-├── docs/
-└── README.md
+1. Open the dashboard.
+2. Select a case such as `PT0054827`.
+3. Click **Run agent**.
+4. Observe the trace: evidence, diagnosis, intervention comparison, and decision.
+5. Open a second patient case to show the approval gate.
+
+## Validation
+
+Run the frontend checks before shipping changes:
+
+```bash
+cd frontend
+npm run test
+npm run build
+npm run lint
 ```
 
-## 6. Frontend architecture
+The project also includes component tests for the main UI and API integration behavior.
 
-```text
-React pages/components
-        |
-        v
-src/api/agentApi.js
-        |
-        +--> mockApi.js               (Hayden develops independently)
-        |
-        +--> Eva REST API             (integration)
+## Deployment
+
+The frontend is intended to be deployed as a standard static Vite app, with a Databricks bundle for workspace-level deployment integration in the repo root.
+
+For local deployment testing:
+
+```bash
+cd frontend
+npm run build
+npm run preview
 ```
 
-The case data contract is the seam between both teammates.
+This serves the production bundle locally for final smoke testing.
 
-## 7. Important product rule
+## Project notes
 
-The agent trace does **not** expose raw/private LLM chain-of-thought. It shows an audit-friendly trace containing observed evidence, tool calls, concise rationale, confidence, decisions, approvals, actions, and outcomes.
+- the app intentionally avoids exposing raw LLM reasoning traces
+- the trace is designed to be audit-friendly and business-readable
+- the data layer is isolated to make backend swapping low-risk
+- the demo should remain understandable in under two minutes
 
-## 8. Next frontend phases
+## Related components
 
-- Connect Eva's real backend.
-- Add automated component/API tests.
-- Add one or two small business-impact visualizations only if they improve the two-minute demo.
-- Validate mobile/tablet layout.
-- Final accessibility pass.
-- Final judge-demo polish and timing.
-- Integrate frontend deployment into the team's Databricks Asset Bundle strategy.
+- backend API: [backend/README.md](../backend/README.md)
+- root project: [README.md](../README.md)
