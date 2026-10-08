@@ -1,13 +1,13 @@
-const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false';
+const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API === 'true';
 
-// Relative '/api' in production (same origin / reverse proxy); localhost only in dev.
+// Same-origin API; Vite proxies development requests to the local backend.
 // Override with VITE_API_BASE_URL. Never put tokens or secrets in VITE_* variables:
 // they are bundled into the browser and visible to everyone.
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api');
+  '/api';
 
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 90000;
 const RUN_TIMEOUT_MS = 90000;
 
 // Loaded lazily so the mock layer is not part of the bundle when running LIVE.

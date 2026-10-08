@@ -14,8 +14,8 @@ async function loadLive() {
   return import('../src/api/agentApi.js');
 }
 
-describe('mock mode (default)', () => {
-  beforeEach(() => vi.resetModules());
+describe('explicit mock mode', () => {
+  beforeEach(() => { vi.stubEnv('VITE_USE_MOCK_API', 'true'); vi.resetModules(); });
 
   it('reports MOCK and never calls fetch', async () => {
     const fetchSpy = vi.fn();
@@ -100,7 +100,7 @@ describe('live mode', () => {
     );
     const { agentApi } = await loadLive();
     const outcome = expect(agentApi.getSummary()).rejects.toThrow(/timed out/i);
-    await vi.advanceTimersByTimeAsync(15001);
+    await vi.advanceTimersByTimeAsync(90001);
     await outcome;
   });
 });
