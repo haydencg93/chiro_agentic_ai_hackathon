@@ -4,7 +4,7 @@ import {
   CircleDollarSign, ClipboardList, Mail, Phone,
   Play, RotateCcw, UserRound,
 } from 'lucide-react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { agentApi } from '../api/agentApi.js';
 import { RiskBadge, StatusBadge } from '../components/ui/Badges.jsx';
 import { formatCurrency, formatPercent } from '../utils/formatters.js';
@@ -20,9 +20,15 @@ const stageLabels = {
   MEASURE: 'Measure',
 };
 
+// Remount per case so every piece of state resets when the route param changes.
 export default function CasePage() {
   const { caseId } = useParams();
+  return <CaseView key={caseId} caseId={caseId} />;
+}
+
+function CaseView({ caseId }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [caseData, setCaseData] = useState(null);
   const [agentResult, setAgentResult] = useState(null);
   const [visibleCount, setVisibleCount] = useState(0);
@@ -30,29 +36,41 @@ export default function CasePage() {
   const [running, setRunning] = useState(false);
   const [approvalBusy, setApprovalBusy] = useState(false);
   const [error, setError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
   const timerRef = useRef(null);
   const autoRunConsumedRef = useRef(false);
-
-  const loadCase = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await agentApi.getCase(caseId);
-      setCaseData(data);
-      setAgentResult(null);
-      setVisibleCount(data.trace?.length || 0);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const runAgentRef = useRef(null);
 
   useEffect(() => {
-    autoRunConsumedRef.current = false;
-    loadCase();
-    return () => window.clearInterval(timerRef.current);
-  }, [caseId]);
+    let cancelled = false;
+
+    agentApi
+      .getCase(caseId)
+      .then((data) => {
+        if (cancelled) return;
+        setCaseData(data);
+        setAgentResult(null);
+        setVisibleCount(data.trace?.length || 0);
+        setError('');
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timerRef.current);
+    };
+  }, [caseId, reloadToken]);
+
+  function retryLoad() {
+    setError('');
+    setLoading(true);
+    setReloadToken((token) => token + 1);
+  }
 
   const visibleTrace = useMemo(() => {
     const source = agentResult?.trace || caseData?.trace || [];
@@ -162,23 +180,25 @@ export default function CasePage() {
     }
   }
 
+  // Always point at the latest runAgent so the listener below can be registered once.
   useEffect(() => {
-    const handleHeaderRun = () => runAgent();
-    window.addEventListener('app:run-agent', handleHeaderRun);
-    return () => window.removeEventListener('app:run-agent', handleHeaderRun);
-  }, [caseData, running, approvalBusy, caseId]);
+    runAgentRef.current = runAgent;
+  });
 
   useEffect(() => {
-    if (
-      !loading &&
-      caseData &&
-      location.state?.autoRun &&
-      !autoRunConsumedRef.current
-    ) {
+    const handleHeaderRun = () => runAgentRef.current?.();
+    window.addEventListener('app:run-agent', handleHeaderRun);
+    return () => window.removeEventListener('app:run-agent', handleHeaderRun);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && caseData && location.state?.autoRun && !autoRunConsumedRef.current) {
       autoRunConsumedRef.current = true;
-      runAgent();
+      // Clear the navigation flag so a page refresh does not start the agent again.
+      navigate(location.pathname, { replace: true, state: null });
+      runAgentRef.current?.();
     }
-  }, [loading, caseData, location.state, caseId]);
+  }, [loading, caseData, location.state, location.pathname, navigate]);
 
   if (loading) {
     return <div className="h-[520px] animate-pulse rounded-[32px] bg-white/[0.035]" />;
@@ -186,7 +206,7 @@ export default function CasePage() {
 
   if (error && !caseData) {
     return (
-      <div className="surface-card rounded-[28px] p-6">
+      <div role="alert" className="surface-card rounded-[28px] p-6">
         <p className="font-semibold text-[#ffc7d2]">Could not load this case.</p>
         <p className="mt-2 text-sm text-[var(--text-secondary)]">{error}</p>
       </div>
@@ -245,7 +265,7 @@ export default function CasePage() {
             ) : (
               <button
                 type="button"
-                onClick={loadCase}
+                onClick={retryLoad}
                 className="inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.05] hover:text-white"
               >
                 <RotateCcw size={16} /> Refresh Case
@@ -293,7 +313,7 @@ export default function CasePage() {
       />
 
       {error ? (
-        <div className="rounded-2xl border border-[#ff8ea6]/15 bg-[#ff8ea6]/[0.06] p-4 text-sm text-[#ffc7d2]">
+        <div role="alert" className="rounded-2xl border border-[#ff8ea6]/15 bg-[#ff8ea6]/[0.06] p-4 text-sm text-[#ffc7d2]">
           {error}
         </div>
       ) : null}
@@ -430,7 +450,7 @@ function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, showInterventions, i
                   <div className="text-xs font-medium text-[var(--text-secondary)]">Confidence</div>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
-                      <div className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--ice-blue))]" style={{ width: `${diagnosis.confidence * 100}%` }} />
+                      <div className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--ice-blue))]" style={{ width: `${Math.min(100, Math.max(0, (diagnosis.confidence || 0) * 100))}%` }} />
                     </div>
                     <div className="text-lg font-semibold text-white">{formatPercent(diagnosis.confidence)}</div>
                   </div>
@@ -775,9 +795,9 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
           {showAction ? (
             <div className="space-y-2">
               <InfoTile label="Action type" value={item.action.task_type || item.action.type} />
-              <InfoTile label="Assigned to" value={item.action.assignee || 'Scheduling Team'} />
-              <InfoTile label="Priority" value={item.action.priority || 'High'} />
-              <InfoTile label="Due date" value={item.action.due_date || 'Today'} />
+              <InfoTile label="Assigned to" value={item.action.assignee || '—'} />
+              <InfoTile label="Priority" value={item.action.priority || '—'} />
+              <InfoTile label="Due date" value={item.action.due_date || '—'} />
             </div>
           ) : (
             <Placeholder text="Execution details will appear here." />

@@ -108,3 +108,15 @@ main :where(p, span, div, h1, h2, h3, h4, button, a, td, th, label) {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-pulse {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

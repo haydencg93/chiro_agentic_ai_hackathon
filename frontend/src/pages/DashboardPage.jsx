@@ -7,6 +7,7 @@ import {
 import { agentApi } from '../api/agentApi.js';
 import CaseTable from '../components/dashboard/CaseTable.jsx';
 import MetricCard from '../components/ui/MetricCard.jsx';
+import { APP_NAME } from '../config.js';
 import { formatCurrency } from '../utils/formatters.js';
 
 export default function DashboardPage() {
@@ -23,7 +24,7 @@ export default function DashboardPage() {
       .then(([summaryData, caseData]) => {
         if (!active) return;
         setSummary(summaryData);
-        setCases(caseData.cases);
+        setCases(caseData?.cases ?? []);
       })
       .catch((err) => active && setError(err.message))
       .finally(() => active && setLoading(false));
@@ -61,7 +62,7 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <div className="surface-card rounded-[28px] p-6">
+      <div role="alert" className="surface-card rounded-[28px] p-6">
         <p className="wrap-anywhere font-semibold text-[#ffc7d2]">Could not load the dashboard.</p>
         <p className="wrap-anywhere mt-2 text-sm text-[var(--text-secondary)]">{error}</p>
       </div>
@@ -81,7 +82,7 @@ export default function DashboardPage() {
               Agent-guided recovery for at-risk patient revenue.
             </h1>
             <p className="wrap-anywhere mt-3 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
-              NAME TBD identifies revenue at risk, tracks agent actions, surfaces priority cases,
+              {APP_NAME} identifies revenue at risk, tracks agent actions, surfaces priority cases,
               and keeps teams focused on the business outcomes that matter most.
             </p>
           </div>
@@ -94,11 +95,11 @@ export default function DashboardPage() {
 
       <section className="col-span-3 grid grid-cols-3 gap-4 max-md:col-span-1 max-md:grid-cols-1">
         <MetricCard label="At Risk" value={formatCurrency(summary.revenue_at_risk)} hint={`${summary.high_risk_cases} high-risk cases`} icon={AlertTriangle} accent="rose" active={activeFilter === 'AT_RISK'} onClick={() => applyFilter('AT_RISK')} />
-        <MetricCard label="Need Approval" value={summary.awaiting_approval.toString()} hint="Actions waiting on supervisor review" icon={ShieldAlert} accent="violet" active={activeFilter === 'NEED_APPROVAL'} onClick={() => applyFilter('NEED_APPROVAL')} />
-        <MetricCard label="Cases" value={summary.cases_detected.toString()} hint={`${cases.length} shown in current queue`} icon={UsersRound} accent="indigo" active={activeFilter === 'CASES'} onClick={() => applyFilter('CASES')} />
+        <MetricCard label="Need Approval" value={String(summary.awaiting_approval ?? 0)} hint="Actions waiting on supervisor review" icon={ShieldAlert} accent="violet" active={activeFilter === 'NEED_APPROVAL'} onClick={() => applyFilter('NEED_APPROVAL')} />
+        <MetricCard label="Cases" value={String(summary.cases_detected ?? 0)} hint={`${cases.length} shown in current queue`} icon={UsersRound} accent="indigo" active={activeFilter === 'CASES'} onClick={() => applyFilter('CASES')} />
         <MetricCard label="Recovered" value={formatCurrency(summary.revenue_recovered)} hint="Simulated measured outcomes" icon={CheckCircle2} accent="emerald" active={activeFilter === 'RECOVERED'} onClick={() => applyFilter('RECOVERED')} />
         <MetricCard label="Potentially Recoverable" value={formatCurrency(summary.potentially_recoverable)} hint="Modeled recovery opportunity" icon={CircleDollarSign} accent="ice" />
-        <MetricCard label="Actions Executed" value={summary.actions_executed.toString()} hint="Agent-approved actions completed" icon={Activity} accent="indigo" />
+        <MetricCard label="Actions Executed" value={String(summary.actions_executed ?? 0)} hint="Agent-approved actions completed" icon={Activity} accent="indigo" />
       </section>
 
       {/* Priority work comes first so operators can act before reviewing trends. */}
@@ -142,6 +143,7 @@ function filterCases(cases, filter) {
 
 function RevenueTrendCard({ summary }) {
   const values = summary.revenue_series || [];
+  const labels = summary.revenue_labels || [];
   const max = Math.max(...values, 1);
   const width = 520;
   const height = 150;
@@ -161,18 +163,22 @@ function RevenueTrendCard({ summary }) {
           <p className="wrap-anywhere text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Recovered revenue</p>
           <div className="mt-2 flex min-w-0 flex-wrap items-end gap-3">
             <div className="wrap-anywhere text-4xl font-semibold tracking-tight text-white">{formatCurrency(summary.revenue_recovered)}</div>
-            <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#77e9b2]/20 bg-[#77e9b2]/10 px-2.5 py-1 text-xs font-semibold text-[#b8ffd9]">
-              <MoveUpRight size={12} /> +18%
-            </div>
+            {Number.isFinite(summary.recovery_change_pct) ? (
+              <div className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#77e9b2]/20 bg-[#77e9b2]/10 px-2.5 py-1 text-xs font-semibold text-[#b8ffd9]">
+                <MoveUpRight size={12} /> {summary.recovery_change_pct > 0 ? '+' : ''}{summary.recovery_change_pct}%
+              </div>
+            ) : null}
           </div>
-          <p className="wrap-anywhere mt-2 text-sm text-[var(--text-secondary)]">vs. previous 30 days</p>
+          {Number.isFinite(summary.recovery_change_pct) ? (
+            <p className="wrap-anywhere mt-2 text-sm text-[var(--text-secondary)]">vs. previous 30 days</p>
+          ) : null}
         </div>
         <div className="shrink-0 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-xs text-[var(--text-secondary)]">Last 30 days</div>
       </div>
 
       <div className="rounded-[28px] border border-white/7 bg-[var(--surface-elevated)] p-4">
-        <div className="relative h-[220px] overflow-hidden rounded-2xl">
-          <div className="absolute inset-0 grid grid-cols-6 grid-rows-4 gap-0 opacity-30">
+        <div className="relative h-[220px] overflow-hidden rounded-2xl" role="img" aria-label={`Recovered revenue trend over the last 30 days, ${values.length} data points`}>
+          <div aria-hidden="true" className="absolute inset-0 grid grid-cols-6 grid-rows-4 gap-0 opacity-30">
             {Array.from({ length: 24 }).map((_, index) => <div key={index} className="border border-white/[0.035]" />)}
           </div>
 
@@ -193,16 +199,18 @@ function RevenueTrendCard({ summary }) {
             })}
           </svg>
 
-          <div className="absolute inset-x-4 bottom-0 flex justify-between gap-1 text-[10px] text-[var(--text-muted)]">
-            {['Apr 1', 'Apr 4', 'Apr 7', 'Apr 10', 'Apr 13', 'Apr 16', 'Apr 19', 'Apr 22', 'Apr 25', 'Apr 28', 'Apr 29', 'Apr 30'].map((label) => <span key={label} className="wrap-anywhere text-center">{label}</span>)}
-          </div>
+          {labels.length ? (
+            <div className="absolute inset-x-4 bottom-0 flex justify-between gap-1 text-[10px] text-[var(--text-muted)]">
+              {labels.map((label, index) => <span key={`${label}-${index}`} className="wrap-anywhere text-center">{label}</span>)}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   );
 }
 
-function AgentActivityCard({ activities }) {
+function AgentActivityCard({ activities = [] }) {
   const [showAll, setShowAll] = useState(false);
   const visibleActivities = showAll ? activities : activities.slice(0, 3);
 
@@ -219,8 +227,8 @@ function AgentActivityCard({ activities }) {
       </div>
 
       <div className="space-y-4">
-        {visibleActivities.map((item) => (
-          <div key={`${item.title}-${item.time}`} className="flex min-w-0 gap-4 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+        {visibleActivities.map((item, index) => (
+          <div key={`${item.title}-${item.time}-${index}`} className="flex min-w-0 gap-4 rounded-2xl border border-white/8 bg-white/[0.02] p-4">
             <div className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-[rgba(140,231,255,.1)] text-[var(--ice-blue)]"><Clock3 size={16} /></div>
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-start justify-between gap-3">
@@ -236,7 +244,7 @@ function AgentActivityCard({ activities }) {
       </div>
 
       {activities.length > 3 ? (
-        <button type="button" onClick={() => setShowAll((current) => !current)} className="mt-4 w-full rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3 text-sm font-semibold text-[var(--ice-blue)] transition hover:bg-white/[0.05]">
+        <button type="button" aria-expanded={showAll} onClick={() => setShowAll((current) => !current)} className="mt-4 w-full rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3 text-sm font-semibold text-[var(--ice-blue)] transition hover:bg-white/[0.05]">
           {showAll ? 'Show Less' : `Show More (${activities.length - 3})`}
         </button>
       ) : null}
@@ -244,7 +252,7 @@ function AgentActivityCard({ activities }) {
   );
 }
 
-function ApprovalThresholdsCard({ thresholds }) {
+function ApprovalThresholdsCard({ thresholds = [] }) {
   return (
     <div className="surface-card rounded-[32px] p-5 lg:p-6">
       <div className="mb-5 flex min-w-0 items-center justify-between gap-4">
