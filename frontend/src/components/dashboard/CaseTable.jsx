@@ -31,8 +31,8 @@ export default function CaseTable({ cases }) {
             <div><RiskBadge level={item.risk.level} /></div>
             <div className="wrap-anywhere font-medium text-[var(--text-primary)]">{formatCurrency(item.risk.revenue_at_risk)}</div>
             <div className="min-w-0">
-              <div className="wrap-anywhere text-sm font-medium text-[var(--text-primary)]">{item.issue}</div>
-              <div className="wrap-anywhere mt-0.5 text-xs text-[var(--text-muted)]">Last activity {item.last_activity_at}</div>
+              <div className="wrap-anywhere text-sm font-medium text-[var(--text-primary)]">{item.status === 'READY' ? 'Observed risk signals' : item.issue}</div>
+              <div className="wrap-anywhere mt-0.5 text-xs text-[var(--text-muted)]">Snapshot {item.as_of_date || '—'}</div>
             </div>
             <div><StatusBadge status={item.status} /></div>
             <ChevronRight size={18} className="hidden text-[var(--text-muted)] lg:block" />

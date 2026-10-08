@@ -44,7 +44,7 @@ describe('CaseTable', () => {
     expect(screen.getByText('PT001')).toBeInTheDocument();
     expect(screen.getByText('$1,240')).toBeInTheDocument();
     expect(screen.getByText('High Risk')).toBeInTheDocument();
-    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.getByText('Needs Analysis')).toBeInTheDocument();
     expect(screen.queryByText('Alex Example')).not.toBeInTheDocument();
   });
 

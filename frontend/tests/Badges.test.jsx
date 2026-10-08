@@ -20,10 +20,10 @@ describe('RiskBadge', () => {
 
 describe('StatusBadge', () => {
   it.each([
-    ['READY', 'Open'],
+    ['READY', 'Needs Analysis'],
     ['RESCUED', 'Rescued'],
-    ['ACTIONED', 'Actioned'],
-    ['AWAITING_APPROVAL', 'Need Approval'],
+    ['ACTIONED', 'Action Recorded'],
+    ['AWAITING_APPROVAL', 'Needs Approval'],
     ['REVIEW', 'Review'],
   ])('maps %s to "%s"', (status, label) => {
     render(<StatusBadge status={status} />);

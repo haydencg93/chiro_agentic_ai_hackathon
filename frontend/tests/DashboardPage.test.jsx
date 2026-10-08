@@ -10,6 +10,7 @@ const summary = {
   potentially_recoverable: 31800,
   revenue_recovered: 32690,
   actions_executed: 18,
+  actions_recorded: 19,
   awaiting_approval: 4,
   revenue_series: [1, 2, 3],
   revenue_labels: ['Apr 1', 'Apr 2', 'Apr 3'],
@@ -69,6 +70,9 @@ describe('DashboardPage', () => {
     renderPage();
 
     expect(await screen.findByText('$84,250')).toBeInTheDocument();
+    expect(screen.getByText('Modeled Recovery')).toBeInTheDocument();
+    expect(screen.getByText('Actions Recorded')).toBeInTheDocument();
+    expect(screen.getByText('19')).toBeInTheDocument();
     const rows = screen.getAllByText(/^PT-/).map((node) => node.textContent);
     expect(rows).toEqual(['PT-B', 'PT-C', 'PT-A']);
   });
@@ -111,16 +115,16 @@ describe('DashboardPage', () => {
     expect(await screen.findByText(/\+12%/)).toBeInTheDocument();
   });
 
-  it('lets the user close the Executive Command Center and omits approval thresholds', async () => {
+  it('lets the user close the Welcome and omits approval thresholds', async () => {
     getSummary.mockResolvedValue(summary);
     getCases.mockResolvedValue({ cases: [] });
     renderPage();
 
-    expect(await screen.findByRole('region', { name: 'Executive Command Center' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Welcome' })).toBeInTheDocument();
     expect(screen.queryByText('Approval Thresholds')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Close Executive Command Center' }));
-    expect(screen.queryByRole('region', { name: 'Executive Command Center' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Close welcome' }));
+    expect(screen.queryByRole('region', { name: 'Welcome' })).not.toBeInTheDocument();
   });
 
   it('filters the queue to cases awaiting approval when that card is clicked', async () => {
@@ -134,11 +138,31 @@ describe('DashboardPage', () => {
 
     renderPage();
     await screen.findByText('PT-A');
-    await userEvent.click(screen.getByRole('button', { name: /^need approval/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^needs approval/i }));
 
     await waitFor(() => expect(screen.queryByText('PT-A')).not.toBeInTheDocument());
     expect(screen.getByText('PT-B')).toBeInTheDocument();
     expect(notices.at(-1).message).toMatch(/1 match/);
     window.removeEventListener('app:notice', onNotice);
   });
+  it('reveals ten rows at a time, resets on filter, and never refetches for Load more', async () => {
+    getSummary.mockResolvedValue(summary);
+    getCases.mockResolvedValue({ cases: Array.from({length:25}, (_,i) => makeCase(String(i), i === 24 ? 'AWAITING_APPROVAL' : 'READY', i + 100)) });
+    renderPage();
+    await screen.findByText('PT-24');
+    expect(screen.getAllByText(/^PT-/)).toHaveLength(10);
+    await userEvent.click(screen.getByRole('button', {name:'Load more'}));
+    expect(screen.getAllByText(/^PT-/)).toHaveLength(20);
+    await userEvent.click(screen.getByRole('button', {name:/^needs approval/i}));
+    expect(screen.getAllByText(/^PT-/)).toHaveLength(1);
+    expect(screen.queryByRole('button', {name:'Load more'})).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', {name:/^cases /i}));
+    expect(screen.getAllByText(/^PT-/)).toHaveLength(10);
+    await userEvent.click(screen.getByRole('button', {name:'Load more'}));
+    await userEvent.click(screen.getByRole('button', {name:'Load more'}));
+    expect(screen.getAllByText(/^PT-/)).toHaveLength(25);
+    expect(screen.queryByRole('button', {name:'Load more'})).not.toBeInTheDocument();
+    expect(getCases).toHaveBeenCalledTimes(1);
+  });
+
 });

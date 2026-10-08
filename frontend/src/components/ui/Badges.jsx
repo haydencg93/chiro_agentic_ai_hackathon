@@ -21,10 +21,10 @@ export function StatusBadge({ status }) {
     REVIEW: 'border-[#c6b8ff]/25 bg-[#c6b8ff]/10 text-[#ddd4ff]',
   };
   const labelMap = {
-    READY: 'Open',
+    READY: 'Needs Analysis',
     RESCUED: 'Rescued',
-    ACTIONED: 'Actioned',
-    AWAITING_APPROVAL: 'Need Approval',
+    ACTIONED: 'Action Recorded',
+    AWAITING_APPROVAL: 'Needs Approval',
     REVIEW: 'Review',
   };
   const label = labelMap[status] || status?.replaceAll('_', ' ') || 'Unknown';
@@ -33,4 +33,8 @@ export function StatusBadge({ status }) {
       {label}
     </span>
   );
+}
+
+export function actionStatusLabel(action) {
+  return ({ EXECUTED: 'Action Recorded', RECORDED: 'Action Recorded', PENDING_APPROVAL: 'Needs Approval', REJECTED: 'Rejected' })[action?.status] || 'Not recorded';
 }
