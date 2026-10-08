@@ -9,7 +9,7 @@ export default function CaseTable({ cases }) {
   return (
     <div className="overflow-hidden rounded-3xl border border-white/8 bg-[var(--surface)] shadow-[0_16px_40px_rgba(0,0,0,.22)]">
       <div className="hidden grid-cols-[1.1fr_.9fr_.85fr_1fr_.9fr_36px] gap-4 border-b border-white/8 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)] lg:grid">
-        <span>Patient</span>
+        <span>Patient ID</span>
         <span>Risk</span>
         <span>At Risk</span>
         <span>Issue</span>
@@ -27,7 +27,6 @@ export default function CaseTable({ cases }) {
           >
             <div className="min-w-0">
               <div className="wrap-anywhere font-semibold text-white">{item.patient.patient_id}</div>
-              <div className="wrap-anywhere mt-0.5 text-sm text-[var(--text-secondary)]">{item.patient.name}</div>
             </div>
             <div><RiskBadge level={item.risk.level} /></div>
             <div className="wrap-anywhere font-medium text-[var(--text-primary)]">{formatCurrency(item.risk.revenue_at_risk)}</div>

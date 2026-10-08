@@ -32,7 +32,10 @@ POST /api/cases/:caseId/reject
 ```json
 {
   "case_id": "CASE-0054827",
-  "patient": { "patient_id": "PT0054827" },
+  "patient": {
+    "patient_id": "PT0054827",
+    "age_range": "50-59"
+  },
   "status": "READY",
   "risk": {
     "level": "HIGH",
@@ -47,6 +50,8 @@ POST /api/cases/:caseId/reject
   "trace": []
 }
 ```
+
+The UI uses only the synthetic patient ID and age range from the patient record. Do not include patient names, exact ages, contact details, medical record numbers, payer details, or provider preferences in this frontend contract.
 
 ## Trace event shape
 

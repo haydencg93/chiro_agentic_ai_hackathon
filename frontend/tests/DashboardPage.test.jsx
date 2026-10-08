@@ -12,13 +12,14 @@ const summary = {
   actions_executed: 18,
   awaiting_approval: 4,
   revenue_series: [1, 2, 3],
+  revenue_labels: ['Apr 1', 'Apr 2', 'Apr 3'],
   agent_activity: [],
   approval_thresholds: [],
 };
 
 const makeCase = (id, status, revenue, level = 'HIGH') => ({
   case_id: id,
-  patient: { patient_id: `PT-${id}`, name: `Patient ${id}` },
+  patient: { patient_id: `PT-${id}` },
   risk: { level, revenue_at_risk: revenue },
   issue: 'Issue',
   last_activity_at: 'now',
@@ -81,7 +82,7 @@ describe('DashboardPage', () => {
   });
 
   it('hides the trend badge and date labels when the backend does not send them', async () => {
-    getSummary.mockResolvedValue(summary);
+    getSummary.mockResolvedValue({ ...summary, revenue_labels: undefined });
     getCases.mockResolvedValue({ cases: [] });
     renderPage();
     await screen.findByText('$84,250');
@@ -89,11 +90,37 @@ describe('DashboardPage', () => {
     expect(screen.queryByText('Apr 1')).not.toBeInTheDocument();
   });
 
+  it('aligns each date label with the center of its revenue bar', async () => {
+    getSummary.mockResolvedValue(summary);
+    getCases.mockResolvedValue({ cases: [] });
+    renderPage();
+
+    await screen.findByText('$84,250');
+    const bars = screen.getByTestId('trend-bars');
+    const dateLabels = screen.getByTestId('trend-date-labels');
+
+    expect(bars.style.gridTemplateColumns).toBe(dateLabels.style.gridTemplateColumns);
+    expect(dateLabels.children).toHaveLength(summary.revenue_series.length);
+    expect(dateLabels.querySelectorAll('.text-center')).toHaveLength(summary.revenue_series.length);
+  });
+
   it('shows the trend badge when recovery_change_pct is provided', async () => {
     getSummary.mockResolvedValue({ ...summary, recovery_change_pct: 12 });
     getCases.mockResolvedValue({ cases: [] });
     renderPage();
     expect(await screen.findByText(/\+12%/)).toBeInTheDocument();
+  });
+
+  it('lets the user close the Executive Command Center and omits approval thresholds', async () => {
+    getSummary.mockResolvedValue(summary);
+    getCases.mockResolvedValue({ cases: [] });
+    renderPage();
+
+    expect(await screen.findByRole('region', { name: 'Executive Command Center' })).toBeInTheDocument();
+    expect(screen.queryByText('Approval Thresholds')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close Executive Command Center' }));
+    expect(screen.queryByRole('region', { name: 'Executive Command Center' })).not.toBeInTheDocument();
   });
 
   it('filters the queue to cases awaiting approval when that card is clicked', async () => {

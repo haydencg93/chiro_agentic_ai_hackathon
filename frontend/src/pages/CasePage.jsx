@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Bot, CalendarDays, CheckCircle2,
-  CircleDollarSign, ClipboardList, Mail, Phone,
-  Play, RotateCcw, UserRound,
+  CircleDollarSign, ClipboardList, Play, RotateCcw, UserRound,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { agentApi } from '../api/agentApi.js';
@@ -234,13 +233,7 @@ function CaseView({ caseId }) {
               <StatusBadge status={caseData.status} />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
-              <span>{caseData.patient.name}</span>
-              <span className="text-white/20">|</span>
-              <span>{caseData.patient.sex}</span>
-              <span className="text-white/20">|</span>
-              <span>Age {caseData.patient.age}</span>
-              <span className="text-white/20">|</span>
-              <span>MRN {caseData.patient.mrn}</span>
+              {caseData.patient.age_range ? <span>Age range {caseData.patient.age_range}</span> : null}
             </div>
           </div>
 
@@ -365,19 +358,13 @@ function PatientProfileCard({ patient }) {
           <UserRound size={20} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Patient Profile</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">{patient.name}</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Patient Record</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">{patient.patient_id}</h2>
         </div>
       </div>
 
       <div className="space-y-4 rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-4">
-        <InfoRow icon={Phone} label="Phone" value={patient.phone} />
-        <InfoRow icon={Mail} label="Email" value={patient.email} />
-        <InfoRow label="Preferred Provider" value={patient.preferred_provider} />
-        <InfoRow label="Primary Care" value={patient.primary_care} />
-        <InfoRow label="Care Team" value={patient.care_team} />
-        <InfoRow label="Location" value={patient.location} />
-        <InfoRow label="Payer" value={patient.payer} />
+        {patient.age_range ? <InfoRow label="Age range" value={patient.age_range} /> : null}
       </div>
     </div>
   );
