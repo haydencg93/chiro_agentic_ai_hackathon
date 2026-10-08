@@ -7,7 +7,7 @@ import CaseTable from '../src/components/dashboard/CaseTable.jsx';
 const cases = [
   {
     case_id: 'CASE-1',
-    patient: { patient_id: 'PT001', name: 'Alex Example' },
+    patient: { patient_id: 'PT001' },
     risk: { level: 'HIGH', revenue_at_risk: 1240 },
     issue: 'Scheduling friction',
     last_activity_at: '2 hours ago',
@@ -15,7 +15,7 @@ const cases = [
   },
   {
     case_id: 'CASE 2/odd',
-    patient: { patient_id: 'PT002', name: 'Sam Sample' },
+    patient: { patient_id: 'PT002' },
     risk: { level: 'LOW', revenue_at_risk: 320 },
     issue: 'Value concern',
     last_activity_at: 'Yesterday',
@@ -45,6 +45,7 @@ describe('CaseTable', () => {
     expect(screen.getByText('$1,240')).toBeInTheDocument();
     expect(screen.getByText('High Risk')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.queryByText('Alex Example')).not.toBeInTheDocument();
   });
 
   it('navigates to the case page when a row is clicked', async () => {

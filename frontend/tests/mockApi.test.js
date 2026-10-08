@@ -28,6 +28,11 @@ describe('read endpoints', () => {
     for (const item of cases) {
       expect(item.case_id).toMatch(/^CASE-/);
       expect(item.patient.patient_id).toBeTruthy();
+      expect(item.patient.age_range).toMatch(/^\d{2}-\d{2}$/);
+      expect(item.patient).not.toHaveProperty('name');
+      expect(item.patient).not.toHaveProperty('age');
+      expect(item.patient).not.toHaveProperty('phone');
+      expect(item.patient).not.toHaveProperty('email');
       expect(item.risk.revenue_at_risk).toBeTypeOf('number');
       expect(item.status).toBeTruthy();
     }
