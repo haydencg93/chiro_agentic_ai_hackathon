@@ -1,63 +1,87 @@
-import {
-  approveMockCase, getMockCase, getMockCases,
-  getMockSummary, rejectMockCase, runMockCase,
-} from './mockApi.js';
-
 const USE_MOCK_API = import.meta.env.VITE_USE_MOCK_API !== 'false';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
-async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
+// Relative '/api' in production (same origin / reverse proxy); localhost only in dev.
+// Override with VITE_API_BASE_URL. Never put tokens or secrets in VITE_* variables:
+// they are bundled into the browser and visible to everyone.
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8000/api' : '/api');
 
-  if (!response.ok) {
-    let message = `Request failed with status ${response.status}.`;
-    try {
-      const body = await response.json();
-      message = body?.message || body?.detail || message;
-    } catch {
-      // The response did not contain JSON. Keep the generic message.
+const DEFAULT_TIMEOUT_MS = 15000;
+const RUN_TIMEOUT_MS = 90000;
+
+// Loaded lazily so the mock layer is not part of the bundle when running LIVE.
+const loadMock = () => import('./mockApi.js');
+
+async function request(path, { timeoutMs = DEFAULT_TIMEOUT_MS, headers, ...options } = {}) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let message = `Request failed with status ${response.status}.`;
+      try {
+        const body = await response.json();
+        const detail = body?.message || body?.detail;
+        if (typeof detail === 'string') message = detail;
+      } catch {
+        // The response did not contain JSON. Keep the generic message.
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return response.json();
+    if (response.status === 204) return null;
+    return await response.json();
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('The request timed out. Please try again.');
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
+const caseUrl = (caseId) => `/cases/${encodeURIComponent(caseId)}`;
+
 export const agentApi = {
-  getSummary() {
-    return USE_MOCK_API ? getMockSummary() : request('/summary');
+  async getSummary() {
+    return USE_MOCK_API ? (await loadMock()).getMockSummary() : request('/summary');
   },
 
-  getCases() {
-    return USE_MOCK_API ? getMockCases() : request('/cases');
+  async getCases() {
+    return USE_MOCK_API ? (await loadMock()).getMockCases() : request('/cases');
   },
 
-  getCase(caseId) {
-    return USE_MOCK_API ? getMockCase(caseId) : request(`/cases/${caseId}`);
+  async getCase(caseId) {
+    return USE_MOCK_API ? (await loadMock()).getMockCase(caseId) : request(caseUrl(caseId));
   },
 
-  runCase(caseId) {
+  async runCase(caseId) {
     return USE_MOCK_API
-      ? runMockCase(caseId)
-      : request(`/cases/${caseId}/run`, { method: 'POST' });
+      ? (await loadMock()).runMockCase(caseId)
+      : request(`${caseUrl(caseId)}/run`, { method: 'POST', timeoutMs: RUN_TIMEOUT_MS });
   },
 
-  approveCase(caseId) {
+  async approveCase(caseId) {
     return USE_MOCK_API
-      ? approveMockCase(caseId)
-      : request(`/cases/${caseId}/approve`, { method: 'POST' });
+      ? (await loadMock()).approveMockCase(caseId)
+      : request(`${caseUrl(caseId)}/approve`, { method: 'POST' });
   },
 
-  rejectCase(caseId) {
+  async rejectCase(caseId) {
     return USE_MOCK_API
-      ? rejectMockCase(caseId)
-      : request(`/cases/${caseId}/reject`, { method: 'POST' });
+      ? (await loadMock()).rejectMockCase(caseId)
+      : request(`${caseUrl(caseId)}/reject`, { method: 'POST' });
   },
 };
 

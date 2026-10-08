@@ -1,5 +1,6 @@
 import { initialCases, processedGoldenCase } from '../data/mockCases.js';
 
+const BASE_RECOVERED_TOTAL = 32690; // matches summary.revenue_recovered in the mock summary
 const wait = (ms = 320) => new Promise((resolve) => setTimeout(resolve, ms));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -20,10 +21,12 @@ export async function getMockSummary() {
     high_risk_cases: 24,
     revenue_at_risk: 84250,
     potentially_recoverable: 31800,
-    revenue_recovered: 32690,
+    revenue_recovered: BASE_RECOVERED_TOTAL,
     actions_executed: 18,
     awaiting_approval: 4,
     revenue_series: [1200, 1600, 2200, 1800, 2500, 2900, 3400, 3100, 3700, 3900, 4200, 4600],
+    revenue_labels: ['Apr 1', 'Apr 4', 'Apr 7', 'Apr 10', 'Apr 13', 'Apr 16', 'Apr 19', 'Apr 22', 'Apr 25', 'Apr 28', 'Apr 29', 'Apr 30'],
+    recovery_change_pct: 18,
     agent_activity: [
       {
         title: 'Analyzed PT0054827',
@@ -98,7 +101,7 @@ export async function runMockCase(caseId) {
         revenue_recovered: recovered,
         estimated_cost: cost,
         net_recovered: Math.max(0, recovered - cost),
-        running_total: 32690 + recovered,
+        running_total: BASE_RECOVERED_TOTAL + recovered,
         detail: 'The previously executed action was measured and the simulated outcome was recorded.',
       },
       trace: [
@@ -151,7 +154,7 @@ export async function approveMockCase(caseId) {
       revenue_recovered: recovered,
       estimated_cost: cost,
       net_recovered: Math.max(0, recovered - cost),
-      running_total: 32690 + recovered,
+      running_total: BASE_RECOVERED_TOTAL + recovered,
       detail: 'Approval was granted, the action executed, and the simulated follow-up indicates successful re-engagement.',
     },
     trace: [
@@ -245,7 +248,7 @@ export async function rejectMockCase(caseId) {
       revenue_recovered: recovered,
       estimated_cost: cost,
       net_recovered: Math.max(0, recovered - cost),
-      running_total: 32690 + recovered,
+      running_total: BASE_RECOVERED_TOTAL + recovered,
       detail: 'The financial action was declined, so the agent selected a safe fallback and measured its simulated result.',
     },
     trace: [

@@ -6,12 +6,29 @@ import {
   ShieldCheck, UserRound
 } from 'lucide-react';
 import { agentApi, apiMode } from '../../api/agentApi.js';
+import { APP_NAME, APP_TAGLINE } from '../../config.js';
+
+const caseSearchText = (item) =>
+  [
+    item.case_id,
+    item.patient?.patient_id,
+    item.patient?.name,
+    item.patient?.mrn,
+    item.issue,
+    item.status,
+    item.risk?.level,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+const caseHref = (item) => `/cases/${encodeURIComponent(item.case_id)}`;
 
 const secondaryNavItems = [
   { label: 'Cases', icon: FolderKanban },
   { label: 'Patients', icon: UserRound },
   { label: 'Activity', icon: HeartPulse },
-  { label: 'Approvals', icon: ClipboardList, count: 4 },
+  { label: 'Approvals', icon: ClipboardList },
   { label: 'Settings', icon: Settings },
 ];
 
@@ -19,6 +36,7 @@ export default function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const searchRef = useRef(null);
+  const searchFormRef = useRef(null);
   const noticeTimerRef = useRef(null);
 
   const [notice, setNotice] = useState(null);
@@ -50,7 +68,10 @@ export default function AppShell() {
 
   useEffect(() => {
     const handleSlash = (event) => {
-      if (event.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      const target = document.activeElement;
+      const isEditable =
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName) || target?.isContentEditable;
+      if (event.key === '/' && !isEditable && !event.metaKey && !event.ctrlKey && !event.altKey) {
         event.preventDefault();
         searchRef.current?.focus();
       }
@@ -64,27 +85,21 @@ export default function AppShell() {
     return () => window.removeEventListener('keydown', handleSlash);
   }, []);
 
+  useEffect(() => {
+    if (!searchOpen) return undefined;
+    const handlePointerDown = (event) => {
+      if (!searchFormRef.current?.contains(event.target)) setSearchOpen(false);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [searchOpen]);
+
   const filteredSearchCases = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     if (!query) return searchCases.slice(0, 5);
 
     return searchCases
-      .filter((item) => {
-        const searchable = [
-          item.case_id,
-          item.patient?.patient_id,
-          item.patient?.name,
-          item.patient?.mrn,
-          item.issue,
-          item.status,
-          item.risk?.level,
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-
-        return searchable.includes(query);
-      })
+      .filter((item) => caseSearchText(item).includes(query))
       .slice(0, 7);
   }, [searchCases, searchTerm]);
 
@@ -116,35 +131,22 @@ export default function AppShell() {
     const loaded = await ensureSearchCasesLoaded();
     const query = searchTerm.trim().toLowerCase();
 
-    const match = (query ? loaded : filteredSearchCases).find((item) => {
-      if (!query) return true;
-      const searchable = [
-        item.case_id,
-        item.patient?.patient_id,
-        item.patient?.name,
-        item.patient?.mrn,
-        item.issue,
-        item.status,
-        item.risk?.level,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return searchable.includes(query);
-    });
+    const match = (query ? loaded : filteredSearchCases).find(
+      (item) => !query || caseSearchText(item).includes(query),
+    );
 
     if (!match) {
       showNotice(`No case matched “${searchTerm.trim()}”.`, 'error');
       return;
     }
 
-    navigate(`/cases/${match.case_id}`);
+    navigate(caseHref(match));
     setSearchTerm('');
     setSearchOpen(false);
   }
 
   function selectSearchResult(item) {
-    navigate(`/cases/${item.case_id}`);
+    navigate(caseHref(item));
     setSearchTerm('');
     setSearchOpen(false);
   }
@@ -169,7 +171,7 @@ export default function AppShell() {
       }
 
       showNotice(`Opening ${readyCase.patient.patient_id} and starting the agent.`);
-      navigate(`/cases/${readyCase.case_id}`, { state: { autoRun: true } });
+      navigate(caseHref(readyCase), { state: { autoRun: true } });
     } catch (error) {
       showNotice(`Could not start the agent: ${error.message}`, 'error');
     } finally {
@@ -187,8 +189,8 @@ export default function AppShell() {
               <ShieldCheck size={20} className="text-[var(--ice-blue)]" />
             </div>
             <div className="min-w-0">
-              <div className="wrap-anywhere text-xl font-semibold tracking-tight text-white">NAME TBD</div>
-              <div className="wrap-anywhere text-xs text-[var(--text-muted)]">Executive command center</div>
+              <div className="wrap-anywhere text-xl font-semibold tracking-tight text-white">{APP_NAME}</div>
+              <div className="wrap-anywhere text-xs text-[var(--text-muted)]">{APP_TAGLINE}</div>
             </div>
           </NavLink>
 
@@ -245,11 +247,11 @@ export default function AppShell() {
           <header className="sticky top-0 z-40 border-b border-white/6 bg-[rgba(12,16,32,0.86)] backdrop-blur-xl">
             <div className="flex items-center gap-4 px-4 py-4 lg:px-8">
               <div className="min-w-0 xl:hidden">
-                <div className="wrap-anywhere text-lg font-semibold text-white">NAME TBD</div>
-                <div className="wrap-anywhere text-xs text-[var(--text-muted)]">Executive command center</div>
+                <div className="wrap-anywhere text-lg font-semibold text-white">{APP_NAME}</div>
+                <div className="wrap-anywhere text-xs text-[var(--text-muted)]">{APP_TAGLINE}</div>
               </div>
 
-              <form onSubmit={handleSearchSubmit} className="relative hidden max-w-xl min-w-0 flex-1 md:block">
+              <form ref={searchFormRef} role="search" onSubmit={handleSearchSubmit} className="relative hidden max-w-xl min-w-0 flex-1 md:block">
                 <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   ref={searchRef}
@@ -263,6 +265,7 @@ export default function AppShell() {
                   }}
                   placeholder="Search patients, cases, or keywords..."
                   aria-label="Search cases"
+                  autoComplete="off"
                   className="h-12 w-full rounded-2xl border border-white/8 bg-[var(--surface-elevated)] pl-11 pr-12 text-sm text-white outline-none transition placeholder:text-[var(--text-muted)] focus:border-[rgba(140,231,255,.2)] focus:shadow-[0_0_0_3px_rgba(140,231,255,.08)]"
                 />
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-md border border-white/8 px-2 py-0.5 text-[10px] text-[var(--text-muted)]">/</span>
@@ -318,7 +321,7 @@ export default function AppShell() {
             </div>
           </header>
 
-          <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8" onClick={() => searchOpen && setSearchOpen(false)}>
+          <main className="min-w-0 flex-1 px-4 py-6 lg:px-8 lg:py-8">
             <Outlet />
           </main>
         </div>

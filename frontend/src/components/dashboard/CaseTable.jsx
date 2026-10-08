@@ -22,7 +22,7 @@ export default function CaseTable({ cases }) {
           <button
             key={item.case_id}
             type="button"
-            onClick={() => navigate(`/cases/${item.case_id}`)}
+            onClick={() => navigate(`/cases/${encodeURIComponent(item.case_id)}`)}
             className="grid w-full grid-cols-1 gap-3 px-5 py-4 text-left transition hover:bg-white/[0.03] lg:grid-cols-[1.1fr_.9fr_.85fr_1fr_.9fr_36px] lg:items-center lg:gap-4"
           >
             <div className="min-w-0">
