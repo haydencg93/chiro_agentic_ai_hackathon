@@ -4,6 +4,12 @@ bundle:
 include:
   - resources/*.yml
 
+variables:
+  catalog:
+    default: workspace
+  schema:
+    default: chiro_hackathon
+
 targets:
   dev:
     default: true
