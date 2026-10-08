@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, Play, Search, ShieldCheck,
+  Bell, Play, Search,
 } from 'lucide-react';
 import { agentApi } from '../../api/agentApi.js';
-import { APP_NAME, APP_TAGLINE } from '../../config.js';
+import realignLogo from '../../assets/branding/realign_logo.png';
 
 const caseSearchText = (item) =>
   [
@@ -174,15 +174,9 @@ export default function AppShell() {
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-40 border-b border-white/6 bg-[rgba(12,16,32,0.86)] backdrop-blur-xl">
             <div className="flex items-center gap-4 px-4 py-4 lg:px-8">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(86,87,232,.26),rgba(140,231,255,.12))]">
-                  <ShieldCheck size={19} className="text-[var(--ice-blue)]" />
-                </div>
-                <div className="min-w-0">
-                  <div className="wrap-anywhere text-lg font-semibold text-white">{APP_NAME}</div>
-                  <div className="hidden wrap-anywhere text-xs text-[var(--text-muted)] sm:block">{APP_TAGLINE}</div>
-                </div>
-              </div>
+              <Link to="/" aria-label="REALIGN dashboard" className="relative flex h-12 w-[180px] shrink-0 items-center justify-center overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-[var(--ice-blue)]">
+                <img src={realignLogo} alt="REALIGN" className="w-full max-w-none shrink-0 object-contain" />
+              </Link>
 
               <form ref={searchFormRef} role="search" onSubmit={handleSearchSubmit} className="relative hidden max-w-xl min-w-0 flex-1 md:block">
                 <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -237,14 +231,14 @@ export default function AppShell() {
                   className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[rgba(140,231,255,.14)] bg-[linear-gradient(180deg,rgba(86,87,232,.95),rgba(74,75,201,.92))] px-4 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(86,87,232,.28)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70"
                 >
                   <Play size={16} className="fill-current" />
-                  <span className="hidden sm:inline">{headerBusy ? 'Starting…' : 'Run Agent'}</span>
+                  <span className="hidden sm:inline">{headerBusy ? 'Starting…' : location.pathname.startsWith('/cases/') ? 'Analyze Case' : 'Analyze Next Case'}</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => showNotice('No new notifications.', 'info')}
-                  aria-label="Notifications"
-                  className="grid size-11 place-items-center rounded-2xl border border-white/8 bg-[var(--surface-elevated)] text-[var(--text-secondary)] transition hover:text-white"
+                  disabled title="Notifications unavailable"
+                  aria-label="Notifications unavailable"
+                  className="grid size-11 place-items-center rounded-2xl border border-white/8 bg-[var(--surface-elevated)] text-[var(--text-secondary)] transition disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Bell size={17} />
                 </button>
