@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertTriangle, CheckCircle2, CircleDollarSign,
-  Clock3, Filter, MoveUpRight, ShieldAlert,
-  Sparkles, UsersRound,
+  Clock3, Filter, MoveUpRight, ShieldAlert, Sparkles, UsersRound, X,
 } from 'lucide-react';
 import { agentApi } from '../api/agentApi.js';
 import CaseTable from '../components/dashboard/CaseTable.jsx';
@@ -16,6 +15,7 @@ export default function DashboardPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('AT_RISK');
+  const [showCommandCenter, setShowCommandCenter] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -71,27 +71,37 @@ export default function DashboardPage() {
 
   return (
     <div className="grid grid-cols-3 gap-6 max-md:grid-cols-1">
-      <section className="surface-card col-span-3 rounded-[32px] p-6 lg:p-7 max-md:col-span-1">
-        <div className="flex min-w-0 items-end justify-between gap-4 max-[900px]:flex-col max-[900px]:items-start">
-          <div className="min-w-0">
-            <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ice-blue)]/80">
-              <Sparkles size={14} className="shrink-0" />
-              <span className="wrap-anywhere">Executive Command Center</span>
+      {showCommandCenter ? (
+        <section aria-label="Executive Command Center" className="surface-card relative col-span-3 rounded-[32px] p-6 lg:p-7 max-md:col-span-1">
+          <button
+            type="button"
+            aria-label="Close Executive Command Center"
+            onClick={() => setShowCommandCenter(false)}
+            className="absolute right-5 top-5 grid size-10 place-items-center rounded-xl border border-white/8 bg-white/[0.03] text-[var(--text-secondary)] transition hover:bg-white/[0.08] hover:text-white"
+          >
+            <X size={18} />
+          </button>
+          <div className="flex min-w-0 items-end justify-between gap-4 pr-12 max-[900px]:flex-col max-[900px]:items-start">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ice-blue)]/80">
+                <Sparkles size={14} className="shrink-0" />
+                <span className="wrap-anywhere">Executive Command Center</span>
+              </div>
+              <h1 className="wrap-anywhere mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+                Agent-guided recovery for at-risk patient revenue.
+              </h1>
+              <p className="wrap-anywhere mt-3 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
+                {APP_NAME} identifies revenue at risk, tracks agent actions, surfaces priority cases,
+                and keeps teams focused on the business outcomes that matter most.
+              </p>
             </div>
-            <h1 className="wrap-anywhere mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-              Agent-guided recovery for at-risk patient revenue.
-            </h1>
-            <p className="wrap-anywhere mt-3 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
-              {APP_NAME} identifies revenue at risk, tracks agent actions, surfaces priority cases,
-              and keeps teams focused on the business outcomes that matter most.
-            </p>
+            <div className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-[rgba(140,231,255,.16)] bg-[rgba(140,231,255,.06)] px-4 py-3 text-sm text-[var(--ice-blue)]">
+              <span className="size-2 shrink-0 rounded-full bg-[var(--ice-blue)] shadow-[0_0_18px_rgba(140,231,255,.7)]" />
+              <span className="wrap-anywhere">AI workflow active</span>
+            </div>
           </div>
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-[rgba(140,231,255,.16)] bg-[rgba(140,231,255,.06)] px-4 py-3 text-sm text-[var(--ice-blue)]">
-            <span className="size-2 shrink-0 rounded-full bg-[var(--ice-blue)] shadow-[0_0_18px_rgba(140,231,255,.7)]" />
-            <span className="wrap-anywhere">AI workflow active</span>
-          </div>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="col-span-3 grid grid-cols-3 gap-4 max-md:col-span-1 max-md:grid-cols-1">
         <MetricCard label="At Risk" value={formatCurrency(summary.revenue_at_risk)} hint={`${summary.high_risk_cases} high-risk cases`} icon={AlertTriangle} accent="rose" active={activeFilter === 'AT_RISK'} onClick={() => applyFilter('AT_RISK')} />
@@ -103,7 +113,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Priority work comes first so operators can act before reviewing trends. */}
-      <div className="col-span-2 max-md:col-span-1">
+      <div className="col-span-3 max-md:col-span-1">
         <div className="surface-card rounded-[32px] p-5 lg:p-6">
           <div className="mb-5 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
@@ -117,10 +127,6 @@ export default function DashboardPage() {
           </div>
           <CaseTable cases={filteredCases} />
         </div>
-      </div>
-
-      <div>
-        <ApprovalThresholdsCard thresholds={summary.approval_thresholds} />
       </div>
 
       <div className="col-span-2 max-md:col-span-1">
@@ -147,10 +153,11 @@ function RevenueTrendCard({ summary }) {
   const max = Math.max(...values, 1);
   const width = 520;
   const height = 150;
-  const step = values.length > 1 ? width / (values.length - 1) : width;
+  const step = width / Math.max(values.length, 1);
+  const xPosition = (index) => (index + 0.5) * step;
   const points = values
     .map((value, index) => {
-      const x = index * step;
+      const x = xPosition(index);
       const y = height - (value / max) * (height - 20) - 10;
       return `${x},${y}`;
     })
@@ -177,31 +184,41 @@ function RevenueTrendCard({ summary }) {
       </div>
 
       <div className="rounded-[28px] border border-white/7 bg-[var(--surface-elevated)] p-4">
-        <div className="relative h-[220px] overflow-hidden rounded-2xl" role="img" aria-label={`Recovered revenue trend over the last 30 days, ${values.length} data points`}>
-          <div aria-hidden="true" className="absolute inset-0 grid grid-cols-6 grid-rows-4 gap-0 opacity-30">
-            {Array.from({ length: 24 }).map((_, index) => <div key={index} className="border border-white/[0.035]" />)}
+        <div className="flex h-[220px] flex-col overflow-hidden rounded-2xl" role="img" aria-label={`Recovered revenue trend over the last 30 days, ${values.length} data points`}>
+          <div className="relative min-h-0 flex-1">
+            <div aria-hidden="true" className="absolute inset-0 grid grid-cols-6 grid-rows-4 gap-0 opacity-30">
+              {Array.from({ length: 24 }).map((_, index) => <div key={index} className="border border-white/[0.035]" />)}
+            </div>
+
+            <div
+              data-testid="trend-bars"
+              className="absolute inset-0 grid items-end gap-2"
+              style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
+            >
+              {values.map((value, index) => (
+                <div key={index} className="flex h-full items-end">
+                  <div className="w-full rounded-t-xl bg-[linear-gradient(180deg,rgba(140,231,255,.55),rgba(86,87,232,.35))]" style={{ height: `${Math.max(18, (value / max) * 160)}px` }} />
+                </div>
+              ))}
+            </div>
+
+            <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-0 h-full w-full overflow-visible" preserveAspectRatio="none" aria-hidden="true">
+              <polyline fill="none" stroke="rgba(140,231,255,.95)" strokeWidth="3" points={points} />
+              {values.map((value, index) => {
+                const x = xPosition(index);
+                const y = height - (value / max) * (height - 20) - 10;
+                return <circle key={index} cx={x} cy={y} r="4" fill="rgba(140,231,255,.95)" />;
+              })}
+            </svg>
           </div>
 
-          <div className="absolute inset-x-2 bottom-0 flex h-[170px] items-end gap-2 px-2">
-            {values.map((value, index) => (
-              <div key={index} className="flex flex-1 items-end justify-center">
-                <div className="w-full rounded-t-xl bg-[linear-gradient(180deg,rgba(140,231,255,.55),rgba(86,87,232,.35))]" style={{ height: `${Math.max(18, (value / max) * 160)}px` }} />
-              </div>
-            ))}
-          </div>
-
-          <svg viewBox={`0 0 ${width} ${height}`} className="absolute inset-x-4 bottom-6 h-[160px] w-[calc(100%-2rem)] overflow-visible" preserveAspectRatio="none">
-            <polyline fill="none" stroke="rgba(140,231,255,.95)" strokeWidth="3" points={points} />
-            {values.map((value, index) => {
-              const x = index * step;
-              const y = height - (value / max) * (height - 20) - 10;
-              return <circle key={index} cx={x} cy={y} r="4" fill="rgba(140,231,255,.95)" />;
-            })}
-          </svg>
-
-          {labels.length ? (
-            <div className="absolute inset-x-4 bottom-0 flex justify-between gap-1 text-[10px] text-[var(--text-muted)]">
-              {labels.map((label, index) => <span key={`${label}-${index}`} className="wrap-anywhere text-center">{label}</span>)}
+          {labels.length && values.length ? (
+            <div
+              data-testid="trend-date-labels"
+              className="grid h-6 shrink-0 items-center gap-2 text-[10px] text-[var(--text-muted)]"
+              style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
+            >
+              {labels.slice(0, values.length).map((label, index) => <span key={`${label}-${index}`} className="wrap-anywhere min-w-0 text-center">{label}</span>)}
             </div>
           ) : null}
         </div>
@@ -252,32 +269,6 @@ function AgentActivityCard({ activities = [] }) {
   );
 }
 
-function ApprovalThresholdsCard({ thresholds = [] }) {
-  return (
-    <div className="surface-card rounded-[32px] p-5 lg:p-6">
-      <div className="mb-5 flex min-w-0 items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="wrap-anywhere text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Automation guardrails</p>
-          <h2 className="wrap-anywhere mt-1 text-2xl font-semibold text-white">Approval Thresholds</h2>
-        </div>
-        <div className="shrink-0 text-xs text-[var(--ice-blue)]">Configurable</div>
-      </div>
-
-      <div className="space-y-3">
-        {thresholds.map((item) => (
-          <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-4">
-            <div className="min-w-0">
-              <div className="wrap-anywhere font-medium text-white">{item.label}</div>
-              <div className="wrap-anywhere mt-1 text-sm text-[var(--text-secondary)]">{item.range}</div>
-            </div>
-            <span className={`wrap-anywhere shrink-0 rounded-full px-3 py-1 text-center text-xs font-semibold ${item.tone === 'warning' ? 'bg-[#ffd48a]/10 text-[#ffe2ac]' : 'bg-[rgba(140,231,255,.1)] text-[var(--ice-blue)]'}`}>{item.mode}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function filterLabel(value) {
   const map = {
     AT_RISK: 'at-risk cases',
@@ -295,8 +286,7 @@ function DashboardSkeleton() {
       <div className="col-span-3 grid grid-cols-3 gap-4 max-md:col-span-1 max-md:grid-cols-1">
         {[1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-36 rounded-[28px] bg-white/[0.035]" />)}
       </div>
-      <div className="col-span-2 h-[420px] rounded-[32px] bg-white/[0.035] max-md:col-span-1" />
-      <div className="h-[420px] rounded-[32px] bg-white/[0.035]" />
+      <div className="col-span-3 h-[420px] rounded-[32px] bg-white/[0.035] max-md:col-span-1" />
       <div className="col-span-2 h-[360px] rounded-[32px] bg-white/[0.035] max-md:col-span-1" />
       <div className="h-[360px] rounded-[32px] bg-white/[0.035]" />
     </div>

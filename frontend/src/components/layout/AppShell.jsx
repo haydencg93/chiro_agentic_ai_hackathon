@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, ClipboardList, FolderKanban, HeartPulse, 
-  LayoutDashboard, Play, Search, Settings,
-  ShieldCheck, UserRound
+  Bell, Play, Search, ShieldCheck,
 } from 'lucide-react';
-import { agentApi, apiMode } from '../../api/agentApi.js';
+import { agentApi } from '../../api/agentApi.js';
 import { APP_NAME, APP_TAGLINE } from '../../config.js';
 
 const caseSearchText = (item) =>
   [
     item.case_id,
     item.patient?.patient_id,
-    item.patient?.name,
-    item.patient?.mrn,
     item.issue,
     item.status,
     item.risk?.level,
@@ -23,14 +19,6 @@ const caseSearchText = (item) =>
     .toLowerCase();
 
 const caseHref = (item) => `/cases/${encodeURIComponent(item.case_id)}`;
-
-const secondaryNavItems = [
-  { label: 'Cases', icon: FolderKanban },
-  { label: 'Patients', icon: UserRound },
-  { label: 'Activity', icon: HeartPulse },
-  { label: 'Approvals', icon: ClipboardList },
-  { label: 'Settings', icon: Settings },
-];
 
 export default function AppShell() {
   const navigate = useNavigate();
@@ -182,73 +170,18 @@ export default function AppShell() {
 
   return (
     <div className="min-h-screen bg-[var(--canvas)] text-[var(--text-primary)]">
-      <div className="relative flex min-h-screen">
-        <aside className="hidden w-[260px] shrink-0 border-r border-white/6 bg-[rgba(12,16,32,0.92)] px-5 py-6 xl:block">
-          <NavLink to="/" className="flex items-center gap-3 px-2">
-            <div className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(86,87,232,.26),rgba(140,231,255,.12))] shadow-[0_0_40px_rgba(86,87,232,.15)]">
-              <ShieldCheck size={20} className="text-[var(--ice-blue)]" />
-            </div>
-            <div className="min-w-0">
-              <div className="wrap-anywhere text-xl font-semibold tracking-tight text-white">{APP_NAME}</div>
-              <div className="wrap-anywhere text-xs text-[var(--text-muted)]">{APP_TAGLINE}</div>
-            </div>
-          </NavLink>
-
-          <nav className="mt-8 space-y-1.5">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `flex items-center justify-between rounded-2xl px-3 py-3 text-sm transition ${
-                  isActive
-                    ? 'bg-[rgba(86,87,232,.18)] text-white shadow-[inset_0_0_0_1px_rgba(140,231,255,.14)]'
-                    : 'text-[var(--text-secondary)] hover:bg-white/[0.04] hover:text-white'
-                }`
-              }
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <LayoutDashboard size={18} className="shrink-0" />
-                <span className="wrap-anywhere">Dashboard</span>
-              </span>
-            </NavLink>
-
-            {secondaryNavItems.map(({ label, icon: Icon, count }) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() => showNotice(`${label} is planned, but no dedicated page is connected yet.`, 'info')}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left text-sm text-[var(--text-secondary)] transition hover:bg-white/[0.04] hover:text-white"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <Icon size={18} className="shrink-0" />
-                  <span className="wrap-anywhere">{label}</span>
-                </span>
-                {count ? (
-                  <span className="shrink-0 rounded-full bg-[rgba(86,87,232,.26)] px-2 py-0.5 text-xs font-semibold text-[var(--ice-blue)]">
-                    {count}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </nav>
-
-          <div className="mt-10 rounded-3xl border border-white/8 bg-[var(--surface)]/70 p-4">
-            <p className="wrap-anywhere text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">API status</p>
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-3 py-3">
-              <span className="wrap-anywhere text-sm text-[var(--text-secondary)]">Contract mode</span>
-              <span className="shrink-0 rounded-full border border-[rgba(140,231,255,.24)] bg-[rgba(140,231,255,.08)] px-2.5 py-1 text-xs font-semibold text-[var(--ice-blue)]">
-                {apiMode}
-              </span>
-            </div>
-          </div>
-        </aside>
-
+      <div className="min-h-screen">
         <div className="flex min-h-screen min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-40 border-b border-white/6 bg-[rgba(12,16,32,0.86)] backdrop-blur-xl">
             <div className="flex items-center gap-4 px-4 py-4 lg:px-8">
-              <div className="min-w-0 xl:hidden">
-                <div className="wrap-anywhere text-lg font-semibold text-white">{APP_NAME}</div>
-                <div className="wrap-anywhere text-xs text-[var(--text-muted)]">{APP_TAGLINE}</div>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(86,87,232,.26),rgba(140,231,255,.12))]">
+                  <ShieldCheck size={19} className="text-[var(--ice-blue)]" />
+                </div>
+                <div className="min-w-0">
+                  <div className="wrap-anywhere text-lg font-semibold text-white">{APP_NAME}</div>
+                  <div className="hidden wrap-anywhere text-xs text-[var(--text-muted)] sm:block">{APP_TAGLINE}</div>
+                </div>
               </div>
 
               <form ref={searchFormRef} role="search" onSubmit={handleSearchSubmit} className="relative hidden max-w-xl min-w-0 flex-1 md:block">
@@ -283,7 +216,7 @@ export default function AppShell() {
                           className="flex w-full min-w-0 items-start justify-between gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/[0.05]"
                         >
                           <div className="min-w-0">
-                            <div className="wrap-anywhere text-sm font-semibold text-white">{item.patient.patient_id} · {item.patient.name}</div>
+                            <div className="wrap-anywhere text-sm font-semibold text-white">{item.patient.patient_id}</div>
                             <div className="wrap-anywhere mt-1 text-xs text-[var(--text-secondary)]">{item.issue} · {item.status?.replaceAll('_', ' ') || 'UNKNOWN'}</div>
                           </div>
                           <span className="shrink-0 text-xs text-[var(--ice-blue)]">{item.risk.level}</span>
