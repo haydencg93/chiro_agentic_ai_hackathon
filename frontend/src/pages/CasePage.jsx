@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, Bot, CalendarDays, CheckCircle2,
-  CircleDollarSign, ClipboardList, Play, RotateCcw, UserRound,
+  CircleDollarSign, ClipboardList, Play, RotateCcw,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { agentApi } from '../api/agentApi.js';
-import { RiskBadge, StatusBadge } from '../components/ui/Badges.jsx';
-import { formatCurrency, formatPercent } from '../utils/formatters.js';
+import { RiskBadge, StatusBadge, actionStatusLabel } from '../components/ui/Badges.jsx';
+import { formatCurrencyExact as formatCurrency, formatPercent } from '../utils/formatters.js';
 
 const stageOrder = ['OBSERVE', 'INVESTIGATE', 'DIAGNOSE', 'SIMULATE', 'DECIDE', 'ACT', 'MEASURE'];
 const stageLabels = {
@@ -118,9 +118,15 @@ function CaseView({ caseId }) {
   async function runAgent() {
     if (running || approvalBusy || !caseData) return;
 
+    if (caseData.agent_run?.status === 'COMPLETED' && caseData.status === 'ACTIONED') {
+      retryLoad();
+      notify('Refreshing recorded analysis.', 'info');
+      return;
+    }
+
     if (caseData.status === 'AWAITING_APPROVAL') {
       document.getElementById('approval-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      notify('This workflow is paused for human approval. Approve or reject the pending action to continue.', 'info');
+      notify('Pending manager review.', 'info');
       return;
     }
 
@@ -169,8 +175,8 @@ function CaseView({ caseId }) {
         updated,
         previousTraceCount,
         kind === 'approve'
-          ? 'Approval recorded. The agent continued through Measure.'
-          : 'Rejection recorded. The agent re-simulated a safe alternative and continued through Measure.',
+          ? 'Approval recorded. Modeled outcome saved.'
+          : 'Action rejected. Case moved to Review.',
       );
     } catch (err) {
       setApprovalBusy(false);
@@ -212,7 +218,7 @@ function CaseView({ caseId }) {
     );
   }
 
-  const canRun = ['READY', 'ACTIONED'].includes(caseData.status);
+  const canRun = caseData.agent_run?.status !== 'COMPLETED' && ['READY', 'ACTIONED'].includes(caseData.status);
   const showDiagnosis = !!resultForSections?.diagnosis && (!running || visibleStages.has('DIAGNOSE'));
   const showInterventions = resultForSections?.interventions?.length > 0 && (!running || visibleStages.has('SIMULATE'));
   const showAction = !!resultForSections?.action && (!running || visibleStages.has('ACT') || visibleStages.has('DECIDE'));
@@ -233,14 +239,18 @@ function CaseView({ caseId }) {
               <StatusBadge status={caseData.status} />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
-              {caseData.patient.age_range ? <span>Age range {caseData.patient.age_range}</span> : null}
+              {(caseData.patient.age_band || caseData.patient.age_range) && <span>Age band {caseData.patient.age_band || caseData.patient.age_range}</span>}
+              {caseData.patient.home_location_id && <span>Location {caseData.patient.home_location_id}</span>}
+              {caseData.patient.acquisition_source && <span>{caseData.patient.acquisition_source}</span>}
+              {caseData.patient.first_visit_date && <span>First visit {caseData.patient.first_visit_date}</span>}
+              {caseData.patient.tenure_months != null && <span>Tenure {caseData.patient.tenure_months} months</span>}
             </div>
           </div>
 
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <div className="rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] px-5 py-4">
               <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                <CircleDollarSign size={14} /> Revenue at Risk
+                <CircleDollarSign size={14} /> Est. 90-day exposure
               </div>
               <div className="mt-2 text-4xl font-semibold tracking-tight text-white">{formatCurrency(caseData.risk.revenue_at_risk)}</div>
             </div>
@@ -253,7 +263,7 @@ function CaseView({ caseId }) {
                 className="agent-pulse inline-flex min-h-14 items-center justify-center gap-2 rounded-[22px] bg-[linear-gradient(180deg,rgba(86,87,232,.96),rgba(74,75,201,.92))] px-5 py-3 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {running ? <Bot size={18} /> : <Play size={17} className="fill-current" />}
-                {running ? 'Agent running…' : caseData.status === 'ACTIONED' ? 'Continue Agent' : 'Run Agent'}
+                {running ? 'Analyzing…' : 'Analyze Case'}
               </button>
             ) : (
               <button
@@ -267,36 +277,34 @@ function CaseView({ caseId }) {
           </div>
         </div>
 
-        <div className="mt-7">
+        {caseData.status === 'READY' && <p className="mt-4 text-sm text-[var(--text-secondary)]">Investigate risk, compare interventions, and recommend an action.</p>}
+        <div className="mt-5">
           <StageProgress visibleStages={visibleStages} visibleTrace={visibleTrace} running={running} caseData={caseData} />
         </div>
       </section>
 
-      <section className="grid grid-cols-[.9fr_1.25fr_.95fr] gap-6 max-[900px]:grid-cols-1">
-        <div className="space-y-6">
-          <PatientProfileCard patient={caseData.patient} />
-          <ObservedBehaviorCard signals={caseData.signals} />
-        </div>
+      <section className="grid grid-cols-3 items-start gap-6 max-[900px]:grid-cols-1">
+        <ObservedBehaviorCard signals={caseData.signals} />
 
         <DiagnosisSimulatorCard
           showDiagnosis={showDiagnosis}
+          running={running}
           diagnosis={resultForSections?.diagnosis}
-          showInterventions={showInterventions}
-          interventions={resultForSections?.interventions || []}
         />
 
         <SelectedActionCard
           selectedIntervention={selectedIntervention}
           action={showAction ? resultForSections?.action : null}
-          outcome={showOutcome ? resultForSections?.outcome : null}
           item={resultForSections}
-          running={running}
           busy={approvalBusy}
+          running={running}
           onApprove={() => handleApproval('approve')}
           onReject={() => handleApproval('reject')}
         />
       </section>
 
+      <InterventionComparisonCard running={running} showInterventions={showInterventions} interventions={resultForSections?.interventions || []} />
+      {showOutcome && <div className="surface-card rounded-[32px] p-5 lg:p-6"><h2 className="mb-4 text-lg font-semibold text-white">Modeled vs Observed</h2><div className="grid gap-3 lg:grid-cols-4 sm:grid-cols-2"><MeasureTiles outcome={resultForSections.outcome} /></div></div>}
       <WorkflowJourney
         item={resultForSections}
         visibleStages={visibleStages}
@@ -315,7 +323,7 @@ function CaseView({ caseId }) {
 }
 
 function StageProgress({ visibleStages, visibleTrace, running, caseData }) {
-  const completed = (stage) => visibleStages.has(stage) || (!running && caseData.trace?.some((event) => event.stage === stage));
+  const completed = (stage) => visibleTrace.some(event => event.stage === stage && event.status !== 'WAITING') || (!running && caseData.trace?.some(event => event.stage === stage && event.status !== 'WAITING'));
   const latestVisibleStage = visibleTrace.at(-1)?.stage;
   const firstIncompleteStage = stageOrder.find((stage) => !completed(stage));
   const currentStage = running ? (latestVisibleStage || firstIncompleteStage || 'MEASURE') : null;
@@ -324,11 +332,11 @@ function StageProgress({ visibleStages, visibleTrace, running, caseData }) {
     <div className="rounded-[28px] border border-white/8 bg-[var(--surface-elevated)] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Workflow Journey</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Agent Workflow</p>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">Observe → Investigate → Diagnose → Simulate → Decide → Act → Measure</p>
         </div>
         <div className="text-xs text-[var(--ice-blue)]">
-          {running ? `In progress: ${stageLabels[currentStage] || 'Observe'}` : 'Ready for review'}
+          {running ? `In progress: ${stageLabels[currentStage] || 'Observe'}` : caseData.status === 'READY' ? 'Needs analysis' : caseData.status === 'AWAITING_APPROVAL' ? 'Needs approval' : 'Recorded analysis'}
         </div>
       </div>
 
@@ -350,42 +358,10 @@ function StageProgress({ visibleStages, visibleTrace, running, caseData }) {
   );
 }
 
-function PatientProfileCard({ patient }) {
-  return (
-    <div className="surface-card rounded-[32px] p-5 lg:p-6">
-      <div className="mb-5 flex items-center gap-3">
-        <div className="grid size-11 place-items-center rounded-2xl bg-[rgba(86,87,232,.16)] text-[var(--ice-blue)]">
-          <UserRound size={20} />
-        </div>
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Patient Record</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">{patient.patient_id}</h2>
-        </div>
-      </div>
-
-      <div className="space-y-4 rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-4">
-        {patient.age_range ? <InfoRow label="Age range" value={patient.age_range} /> : null}
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ icon: Icon, label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-4 text-sm">
-      <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-        {Icon ? <Icon size={15} className="text-[var(--ice-blue)]" /> : null}
-        <span>{label}</span>
-      </div>
-      <div className="max-w-[60%] text-right font-medium text-white">{value}</div>
-    </div>
-  );
-}
-
 function ObservedBehaviorCard({ signals }) {
   return (
     <div className="surface-card rounded-[32px] p-5 lg:p-6">
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <div className="grid size-11 place-items-center rounded-2xl bg-[rgba(140,231,255,.12)] text-[var(--ice-blue)]">
           <CheckCircle2 size={20} />
         </div>
@@ -395,16 +371,16 @@ function ObservedBehaviorCard({ signals }) {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <p className="mb-3 text-xs text-[var(--text-muted)]">Observed at snapshot</p>
+      <div className="space-y-2">
         {signals.map((signal, index) => (
-          <div key={`${signal.type}-${index}`} className="rounded-[24px] border border-white/8 bg-white/[0.02] p-4">
+          <div key={`${signal.type}-${index}`} className="rounded-2xl border border-white/8 bg-white/[0.02] px-3 py-2.5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-base font-medium text-white">{signal.label}</div>
-                <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{signal.detail}</div>
+                <div className="text-sm font-medium text-white">{signal.label}</div>
               </div>
               <div className="shrink-0 rounded-full border border-white/8 bg-[var(--surface-elevated)] px-2.5 py-1 text-xs font-semibold text-[var(--ice-blue)]">
-                {signal.value}
+                {signalValue(signal)}
               </div>
             </div>
           </div>
@@ -414,27 +390,27 @@ function ObservedBehaviorCard({ signals }) {
   );
 }
 
-function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, showInterventions, interventions }) {
+function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, running }) {
   return (
     <div className="surface-card rounded-[32px] p-5 lg:p-6">
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Diagnosis & Intervention Simulator</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">Reasoning and simulation</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Case insights</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">What the agent found</h2>
         </div>
       </div>
 
       <div className="space-y-5">
-        <div className="rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
+        <div className={showDiagnosis && diagnosis ? "rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-4" : ""}>
           {showDiagnosis && diagnosis ? (
             <>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Primary issue</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Hypothesis</div>
                   <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{diagnosis.label}</div>
                 </div>
                 <div className="w-[150px] max-w-full shrink-0">
-                  <div className="text-xs font-medium text-[var(--text-secondary)]">Confidence</div>
+                  <div title="Uncalibrated model self-assessment" className="text-xs font-medium text-[var(--text-secondary)]">Confidence · model estimate</div>
                   <div className="mt-2 flex items-center gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
                       <div className="h-full rounded-full bg-[linear-gradient(90deg,var(--brand),var(--ice-blue))]" style={{ width: `${Math.min(100, Math.max(0, (diagnosis.confidence || 0) * 100))}%` }} />
@@ -443,21 +419,28 @@ function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, showInterventions, i
                   </div>
                 </div>
               </div>
-              <div className="mt-4 rounded-2xl border border-[rgba(140,231,255,.12)] bg-[rgba(140,231,255,.04)] p-4 text-sm leading-6 text-[var(--text-secondary)]">
-                {diagnosis.explanation}
+              <div className="mt-4 rounded-2xl border border-[rgba(140,231,255,.12)] bg-[rgba(140,231,255,.04)] p-3 text-sm leading-6 text-[var(--text-secondary)]">
+                <div className="flex flex-wrap gap-2">{(diagnosis.evidence || []).map(e => <span key={e.evidence_id} title={`${e.tool}.${e.field} · ${e.evidence_id}`} className="rounded-full border border-white/8 px-2 py-1 text-xs">{e.field.replaceAll('_',' ')}: {['missed_rate', 'decline'].includes(e.field) ? formatPercent(e.value) : String(e.value)}</span>)}</div>
+                <details className="mt-2 text-xs"><summary className="cursor-pointer">Hypothesis rationale</summary><p className="mt-2">{diagnosis.explanation}</p></details>
               </div>
             </>
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.02] p-5 text-sm text-[var(--text-secondary)]">
-              The diagnosis will appear after the agent reaches the Diagnose stage.
-            </div>
+            <PendingSummary running={running} />
           )}
         </div>
 
-        <div className="rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
+
+      </div>
+    </div>
+  );
+}
+
+function InterventionComparisonCard({ showInterventions, interventions, running }) {
+  return <div className="surface-card rounded-[32px] p-5 lg:p-6">
+        <div className={showInterventions && interventions.length ? "rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5" : ""}>
           <div className="mb-4 text-lg font-semibold text-white">Intervention Comparison</div>
           {showInterventions && interventions.length ? (
-            <div className="space-y-3">
+            <div className="grid gap-3 lg:grid-cols-3">
               {interventions.map((item, index) => (
                 <div key={item.intervention_id} className={`rounded-[22px] border p-4 ${item.selected ? 'border-[rgba(140,231,255,.28)] bg-[rgba(140,231,255,.08)]' : 'border-white/8 bg-white/[0.02]'}`}>
                   <div className="flex items-start gap-4">
@@ -470,11 +453,11 @@ function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, showInterventions, i
                         {item.selected ? <span className="rounded-full bg-[#77e9b2]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#b8ffd9]">Recommended</span> : null}
                         {item.requires_approval ? <span className="rounded-full bg-[#ffd48a]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#ffe2ac]">Approval</span> : null}
                       </div>
-                      <div className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{item.description}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">Modeled · assumed recovery {formatPercent(item.recovery_probability || 0)}</div>
                       <div className="mt-3 grid gap-3 sm:grid-cols-3">
                         <MiniStat label="Expected recovery" value={formatCurrency(item.expected_recovery)} />
                         <MiniStat label="Estimated cost" value={formatCurrency(item.estimated_cost)} />
-                        <MiniStat label="Win probability" value={formatPercent(item.recovery_probability || 0)} />
+                        <MiniStat label="Expected net" value={formatCurrency(item.net_value)} />
                       </div>
                     </div>
                   </div>
@@ -482,14 +465,17 @@ function DiagnosisSimulatorCard({ showDiagnosis, diagnosis, showInterventions, i
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.02] p-5 text-sm text-[var(--text-secondary)]">
-              Simulated intervention options will appear after the agent reaches the Simulate stage.
-            </div>
+            <PendingSummary running={running} />
           )}
         </div>
-      </div>
-    </div>
-  );
+  </div>;
+}
+
+function PendingSummary({ running }) {
+  return <div className="flex items-center gap-2 py-2 text-sm text-[var(--text-muted)]">
+    {running && <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-[var(--ice-blue)]" />}
+    {running ? 'Analyzing…' : 'Not analyzed yet'}
+  </div>;
 }
 
 function MiniStat({ label, value }) {
@@ -501,49 +487,49 @@ function MiniStat({ label, value }) {
   );
 }
 
-function SelectedActionCard({ selectedIntervention, action, outcome, item, running, busy, onApprove, onReject }) {
+function SelectedActionCard({ selectedIntervention, action, item, busy, running, onApprove, onReject }) {
   const requiresApproval = item?.action?.requires_approval && item?.action?.approval_status === 'PENDING';
 
   return (
     <div className="surface-card rounded-[32px] p-5 lg:p-6">
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-4 flex items-center gap-3">
         <div className="grid size-11 place-items-center rounded-2xl bg-[rgba(86,87,232,.16)] text-[var(--ice-blue)]">
           <ClipboardList size={20} />
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Selected Action</p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">Execution plan</h2>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">Selected intervention</p>
+          <h2 className="mt-1 text-2xl font-semibold text-white">Recommended action</h2>
         </div>
       </div>
 
       <div className="space-y-5">
-        <div className="rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
+        <div className={selectedIntervention && action ? "rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-4" : ""}>
           {selectedIntervention && action ? (
             <>
               <div className="text-xl font-semibold text-white">{selectedIntervention.name}</div>
-              <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{action.description}</div>
-              <div className="mt-4 grid gap-3">
-                <InfoTile label="Assign to" value={action.assignee} />
-                <InfoTile label="Priority" value={action.priority} />
-                <InfoTile label="Task type" value={action.task_type} />
-                <InfoTile label="Due date" value={action.due_date} icon={CalendarDays} />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Modeled economics</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3"><MiniStat label="Expected recovery" value={formatCurrency(selectedIntervention.expected_recovery)} /><MiniStat label="Estimated cost" value={formatCurrency(selectedIntervention.estimated_cost)} /><MiniStat label="Expected net value" value={formatCurrency(selectedIntervention.net_value)} /></div>
+              <details className="mt-3 text-xs text-[var(--text-secondary)]"><summary className="cursor-pointer">Why this action</summary><p className="mt-2">{item.decision?.rationale || 'Recorded model selection.'}</p></details>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <InfoTile label="Status" value={actionStatusLabel(action)} />
+                <InfoTile label="Approval" value={action.requires_approval ? (action.approval_status === 'APPROVED' ? 'Approved' : action.approval_status === 'REJECTED' ? 'Rejected' : 'Required') : 'Not required'} />
+                <div className="sm:col-span-2 flex flex-wrap justify-between gap-2 text-xs text-[var(--text-secondary)]"><span>Assign to · {action.assignee}</span><span>Priority · {action.priority}</span></div>
+                <details className="sm:col-span-2"><summary className="cursor-pointer text-xs text-[var(--text-secondary)]">Task details</summary><div className="mt-2 space-y-2"><InfoTile label="Task type" value={action.task_type} /><InfoTile label="Due date" value={action.due_date} icon={CalendarDays} /></div></details>
               </div>
-              <div className="mt-4 rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-sm leading-6 text-[var(--text-secondary)]">
-                {action.notes}
+              <div className="mt-3 text-xs text-[var(--text-secondary)]">
+                Software task only · no contact or booking.
               </div>
             </>
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/8 bg-white/[0.02] p-5 text-sm text-[var(--text-secondary)]">
-              The selected action will appear once the agent reaches Decide and Act.
-            </div>
+            <PendingSummary running={running} />
           )}
         </div>
 
         {requiresApproval ? (
           <div id="approval-section" className="rounded-[24px] border border-[#ffd48a]/18 bg-[#ffd48a]/[0.06] p-5">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffe2ac]">Human Approval Required</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#ffe2ac]">Needs Approval</div>
             <div className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-              This intervention affects pricing or finances and must be approved before execution.
+              Held for manager review.
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
               <button type="button" disabled={busy} onClick={onReject} className="rounded-2xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-[var(--text-secondary)] transition hover:bg-white/[0.05] hover:text-white disabled:opacity-50">
@@ -556,22 +542,7 @@ function SelectedActionCard({ selectedIntervention, action, outcome, item, runni
           </div>
         ) : null}
 
-        <div className="rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
-          <div className="text-lg font-semibold text-white">Simulated Outcome</div>
-          {outcome ? (
-            <div className="mt-4 space-y-3">
-              <InfoTile label="Patient rebooked" value={outcome.reengaged ? 'YES' : 'NO'} positive={outcome.reengaged} />
-              <InfoTile label="Revenue recovered" value={formatCurrency(outcome.revenue_recovered)} positive />
-              <InfoTile label="Estimated cost" value={formatCurrency(outcome.estimated_cost || 0)} />
-              <InfoTile label="Net recovered" value={formatCurrency(outcome.net_recovered || 0)} positive />
-              <InfoTile label="Running total" value={formatCurrency(outcome.running_total || 0)} positive />
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-dashed border-white/8 bg-white/[0.02] p-5 text-sm text-[var(--text-secondary)]">
-              {running ? 'Outcome will appear when the workflow reaches Measure.' : 'No measured outcome yet.'}
-            </div>
-          )}
-        </div>
+
       </div>
     </div>
   );
@@ -617,14 +588,14 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
     <section className="surface-card rounded-[32px] p-5 lg:p-6">
       <div className="mb-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-          Workflow Journey
+          Agent Workflow
         </p>
         <div className="mt-2 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <h2 className="text-2xl font-semibold text-white">
             Observe → Investigate → Diagnose → Simulate → Decide → Act → Measure
           </h2>
           <p className="text-sm text-[var(--text-secondary)]">
-            Seven workflow stages arranged in a four-column workspace.
+            Business workflow · concise audit
           </p>
         </div>
       </div>
@@ -640,11 +611,11 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-sm font-medium text-white">{signal.label}</div>
                   <span className="shrink-0 rounded-full bg-[rgba(140,231,255,.08)] px-2 py-1 text-[10px] font-semibold text-[var(--ice-blue)]">
-                    {signal.value}
+                    {signalValue(signal)}
                   </span>
                 </div>
                 <div className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">
-                  {signal.detail}
+                  Observed signal
                 </div>
               </div>
             ))}
@@ -655,6 +626,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
           <div className="space-y-3">
             <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-3">
               <div className="text-sm font-medium text-white">Visit history</div>
+              {item.investigate?.visit_history?.length === 2 && <div className="mt-1 text-xs text-[var(--text-secondary)]">Prior {item.investigate.visit_history[0]} · Recent {item.investigate.visit_history[1]}</div>}
               <div className="mt-3 flex h-24 items-end gap-1.5">
                 {(item.investigate?.visit_history || []).map((value, index, arr) => {
                   const max = Math.max(...arr, 1);
@@ -662,7 +634,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
                     <div key={index} className="flex flex-1 items-end">
                       <div
                         className="w-full rounded-t-md bg-[linear-gradient(180deg,rgba(140,231,255,.5),rgba(86,87,232,.28))]"
-                        style={{ height: `${Math.max(12, (value / max) * 78)}px` }}
+                        style={{ height: `${Math.max(0, (value / max) * 78)}px` }}
                       />
                     </div>
                   );
@@ -678,7 +650,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-xs font-medium text-white">{entry.label}</div>
                       <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${entry.status === 'NEGATIVE' ? 'bg-[#ff8ea6]/10 text-[#ffc7d2]' : entry.status === 'POSITIVE' ? 'bg-[#77e9b2]/10 text-[#b8ffd9]' : 'bg-[rgba(140,231,255,.1)] text-[var(--ice-blue)]'}`}>
-                        {entry.status}
+                        Observed
                       </span>
                     </div>
                     <div className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">{entry.detail}</div>
@@ -694,22 +666,22 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
             <div className="space-y-3">
               <div className="rounded-2xl border border-[rgba(140,231,255,.14)] bg-[rgba(140,231,255,.05)] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-                  Primary issue
+                  Hypothesis
                 </div>
                 <div className="mt-2 text-xl font-semibold text-white">{item.diagnosis.label}</div>
                 <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-                  <span className="text-[var(--text-secondary)]">Confidence</span>
+                  <span className="text-[var(--text-secondary)]">Confidence · model estimate</span>
                   <span className="font-semibold text-[var(--ice-blue)]">
                     {formatPercent(item.diagnosis.confidence)}
                   </span>
                 </div>
               </div>
               <div className="rounded-2xl border border-white/8 bg-white/[0.025] p-3 text-xs leading-5 text-[var(--text-secondary)]">
-                {item.diagnosis.explanation}
+                <details><summary className="cursor-pointer">Evidence rationale</summary>{item.diagnosis.explanation}</details>
               </div>
             </div>
           ) : (
-            <Placeholder text="Diagnosis will appear once the workflow reaches this stage." />
+            <Placeholder text="—" />
           )}
         </WorkflowStageCard>
 
@@ -729,7 +701,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
                     <div className="text-sm font-medium text-white">{option.name}</div>
                     {option.selected ? (
                       <span className="rounded-full bg-[#77e9b2]/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-[#b8ffd9]">
-                        Best
+                        Selected
                       </span>
                     ) : null}
                   </div>
@@ -751,7 +723,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
               ))}
             </div>
           ) : (
-            <Placeholder text="Simulation options will appear here." />
+            <Placeholder text="—" />
           )}
         </WorkflowStageCard>
 
@@ -764,7 +736,7 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
                 </div>
                 <div className="mt-2 text-xl font-semibold text-white">{selectedIntervention.name}</div>
                 <div className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">
-                  {selectedIntervention.description}
+                  {item.decision?.rationale}
                 </div>
               </div>
               <div className="grid gap-2">
@@ -774,56 +746,38 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
               </div>
             </div>
           ) : (
-            <Placeholder text="The selected intervention will appear here." />
+            <Placeholder text="—" />
           )}
         </WorkflowStageCard>
 
-        <WorkflowStageCard stage="ACT" active={stageComplete('ACT')}>
+        <WorkflowStageCard stage="ACT" active={stageComplete('ACT')} waiting={item.action?.status === 'PENDING_APPROVAL'}>
           {showAction ? (
             <div className="space-y-2">
+              <InfoTile label="Status" value={actionStatusLabel(item.action)} />
               <InfoTile label="Action type" value={item.action.task_type || item.action.type} />
               <InfoTile label="Assigned to" value={item.action.assignee || '—'} />
               <InfoTile label="Priority" value={item.action.priority || '—'} />
               <InfoTile label="Due date" value={item.action.due_date || '—'} />
             </div>
           ) : (
-            <Placeholder text="Execution details will appear here." />
+            <Placeholder text="—" />
           )}
         </WorkflowStageCard>
 
         <WorkflowStageCard stage="MEASURE" active={stageComplete('MEASURE')}>
           {showOutcome ? (
             <div className="space-y-2">
-              <InfoTile
-                label="Patient rebooked"
-                value={item.outcome.reengaged ? 'YES' : 'NO'}
-                positive={item.outcome.reengaged}
-              />
-              <InfoTile
-                label="Revenue recovered"
-                value={formatCurrency(item.outcome.revenue_recovered)}
-                positive
-              />
-              <InfoTile
-                label="Net recovered"
-                value={formatCurrency(item.outcome.net_recovered || 0)}
-                positive
-              />
-              <InfoTile
-                label="Running total"
-                value={formatCurrency(item.outcome.running_total || 0)}
-                positive
-              />
+              <MeasureTiles outcome={item.outcome} />
             </div>
           ) : (
-            <Placeholder text="Measured outcome will appear here." />
+            <Placeholder text="—" />
           )}
         </WorkflowStageCard>
       </div>
 
       {trace.length ? (
-        <div className="mt-6 rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
-          <div className="mb-4 text-sm font-medium text-white">Agent Activity Log</div>
+        <details className="mt-6 rounded-[24px] border border-white/8 bg-[var(--surface-elevated)] p-5">
+          <summary className="mb-4 cursor-pointer text-sm font-medium text-white">Audit details · {trace.length} events</summary>
           <div className="grid grid-cols-4 gap-3 max-[767px]:grid-cols-2 max-[520px]:grid-cols-1">
             {trace.map((event) => (
               <div
@@ -843,18 +797,18 @@ function WorkflowJourney({ item, visibleStages, running, trace, selectedInterven
               </div>
             ))}
           </div>
-        </div>
+        </details>
       ) : null}
     </section>
   );
 }
 
-function WorkflowStageCard({ stage, active, children }) {
+function WorkflowStageCard({ stage, active, waiting = false, children }) {
   const stageNumber = stageOrder.indexOf(stage) + 1;
 
   return (
     <article
-      className={`flex min-h-[340px] flex-col rounded-[24px] border p-4 ${
+      className={`flex min-h-[190px] flex-col rounded-[24px] border p-4 ${
         active
           ? 'border-[rgba(140,231,255,.16)] bg-[rgba(255,255,255,.025)] shadow-[0_14px_38px_rgba(0,0,0,.18)]'
           : 'border-white/8 bg-white/[0.015]'
@@ -888,7 +842,7 @@ function WorkflowStageCard({ stage, active, children }) {
             : 'bg-white/[0.04] text-[var(--text-muted)]'
         }`}
       >
-        {active ? 'Active / Completed' : 'Pending'}
+        {waiting ? 'Needs Approval' : active ? 'Complete' : 'Pending'}
       </div>
     </article>
   );
@@ -900,4 +854,11 @@ function Placeholder({ text }) {
       {text}
     </div>
   );
+}
+
+function signalValue(signal) {
+  return signal.type === 'LAST_VISIT' ? `${signal.value} days` : ['VISIT_FREQUENCY', 'CANCELLATION'].includes(signal.type) ? formatPercent(signal.value) : signal.value;
+}
+function MeasureTiles({ outcome }) {
+  return <><InfoTile label="Expected Recovery" value={formatCurrency(outcome.simulated_expected_recovery || 0)} /><InfoTile label="Expected Net Value" value={formatCurrency(outcome.simulated_expected_net_value || 0)} /><InfoTile label="Observed Recovery" value={formatCurrency(outcome.observed_revenue_recovered || 0)} /><InfoTile label="Rebooking" value="Not observed" /><p className="text-xs text-[var(--text-muted)] lg:col-span-4 sm:col-span-2">Expectation-only outcome record</p></>;
 }
