@@ -90,3 +90,17 @@ def test_config_rejects_sql_identifier():
 def test_unconfigured_readiness():
     client=TestClient(create_app(Settings(warehouse_id=None)))
     assert client.get('/health?check_databricks=true').status_code==503
+
+def test_summary_uses_selected_recovery_and_counts_recorded_actions(tmp_path):
+    service=RetentionService(SyntheticTestTools(),Ledger(str(tmp_path/'summary.sqlite')))
+    selected=service.build_case(metric())
+    selected.update(diagnosis={'category':'GENERAL_DISENGAGEMENT'}, status='AWAITING_APPROVAL',
+        interventions=[{'expected_recovery':90,'selected':True},{'expected_recovery':200,'selected':False}],
+        action={'status':'PENDING_APPROVAL'})
+    unanalysed=service.build_case(metric(patient_id='PT2'))
+    service.cases=lambda:[selected,unanalysed]
+    summary=service.summary()
+    assert summary['potentially_recoverable']==90
+    assert summary['actions_recorded']==1 and summary['actions_executed']==0
+    assert summary['awaiting_approval']==1
+    assert summary['revenue_at_risk']==780 and summary['revenue_recovered']==0

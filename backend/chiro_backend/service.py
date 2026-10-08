@@ -173,7 +173,7 @@ class RetentionService:
         cases=self.cases()
         return dict(cases_detected=len(cases),high_risk_cases=sum(c['risk']['level']=='HIGH' for c in cases),
                     revenue_at_risk=round(sum(c['risk']['revenue_at_risk'] for c in cases),2),
-                    potentially_recoverable=round(sum(max((i['expected_recovery'] for i in c['interventions']),default=0) for c in cases),2),
+                    potentially_recoverable=round(sum(next((i['expected_recovery'] for i in c['interventions'] if i.get('selected')),0) for c in cases),2),
                     revenue_recovered=0, observed_revenue_recovered=0,
                     simulated_expected_recovery=round(sum((c.get('outcome') or {}).get('simulated_expected_recovery',0) for c in cases),2),
                     actions_executed=sum((c.get('action') or {}).get('status') == 'EXECUTED' for c in cases),actions_recorded=sum(bool(c['action']) for c in cases),
