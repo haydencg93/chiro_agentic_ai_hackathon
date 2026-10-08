@@ -1,0 +1,85 @@
+resources:
+  apps:
+    realign:
+      name: ${var.app_name}
+      description: REALIGN React and FastAPI application
+      source_code_path: ..
+      config:
+        command: [python, app.py]
+        env:
+          - name: CHIRO_WAREHOUSE_ID
+            value_from: sql-warehouse
+          - name: CHIRO_MODEL_ENDPOINT
+            value_from: reasoning-model
+          - name: CHIRO_CATALOG
+            value: ${var.catalog}
+          - name: CHIRO_SCHEMA
+            value: ${var.schema}
+          - name: CHIRO_AGENT_MODE
+            value: llm
+          - name: CHIRO_PERSISTENCE_MODE
+            value: delta
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: reasoning-model
+          serving_endpoint:
+            name: ${var.model_endpoint}
+            permission: CAN_QUERY
+        - name: patients
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.patients
+            permission: SELECT
+        - name: appointments
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.appointments
+            permission: SELECT
+        - name: visits
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.visits
+            permission: SELECT
+        - name: providers
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.providers
+            permission: SELECT
+        - name: locations
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.locations
+            permission: SELECT
+        - name: leads
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.leads
+            permission: SELECT
+        - name: referrals
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.referrals
+            permission: SELECT
+        - name: marketing-campaigns
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.marketing_campaigns
+            permission: SELECT
+        - name: interventions
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.interventions
+            permission: SELECT
+        - name: agent-actions
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.agent_actions
+            permission: MODIFY
+        - name: simulated-outcomes
+          uc_securable:
+            securable_type: TABLE
+            securable_full_name: ${var.catalog}.${var.schema}.simulated_outcomes
+            permission: MODIFY

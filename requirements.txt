@@ -1,0 +1,2 @@
+-e .
+-r backend/requirements.lock.txt

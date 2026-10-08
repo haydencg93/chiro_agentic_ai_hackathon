@@ -10,6 +10,21 @@ variables:
   schema:
     default: chiro_hackathon
 
+  app_name:
+    default: realign
+  warehouse_id:
+    default: "99024bb6d1e64a45"
+  model_endpoint:
+    default: databricks-gpt-oss-120b
+
+sync:
+  include:
+    - frontend/dist/**
+  exclude:
+    - .local/**
+    - frontend/node_modules/**
+    - .venv/**
+
 targets:
   dev:
     default: true
